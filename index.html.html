@@ -1,0 +1,2518 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Armazém — Operação & Controlo (Firebase)</title>
+  <style>
+  :root{
+    --bg:#f6f7fb;
+    --surface:#ffffff;
+    --surface2:#fbfbfe;
+    --stroke:rgba(20,24,33,.12);
+    --text:#101624;
+    --muted:#5b677a;
+    --accent:#1f8a70;   /* verde/teal */
+    --ok:#178f63;
+    --danger:#d64545;
+    --warn:#b88300;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+  body{margin:0;background:linear-gradient(180deg,var(--bg),#ffffff);color:var(--text)}
+  header{position:sticky;top:0;z-index:10;background:rgba(246,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--stroke)}
+  .wrap{max-width:1100px;margin:0 auto;padding:12px 14px}
+  h1{margin:0;font-size:15px;letter-spacing:.2px}
+  h2{margin:0 0 8px;font-size:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .spacer{flex:1}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tabbtn{
+    border:1px solid var(--stroke);
+    background:#ffffff;
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:999px;
+    cursor:pointer;
+    font-weight:700;
+    letter-spacing:.2px;
+  }
+  .tabbtn.active{
+    border-color:rgba(31,138,112,.55);
+    box-shadow:0 0 0 3px rgba(31,138,112,.14) inset;
+    background:rgba(31,138,112,.10);
+  }
+  .card{
+    background:var(--surface);
+    border:1px solid var(--stroke);
+    border-radius:var(--radius);
+    padding:14px;
+    box-shadow:0 8px 28px rgba(16,22,36,.06);
+  }
+  .card.soft{background:var(--surface2)}
+  .grid{display:grid;gap:12px}
+  @media(min-width:980px){ .grid.two{grid-template-columns:1fr 1fr} }
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+  input,select{
+    width:100%; padding:12px 12px; border-radius:14px;
+    background:#ffffff;
+    border:1px solid rgba(20,24,33,.18);
+    color:var(--text); outline:none;
+  }
+  input:focus, select:focus{border-color:rgba(31,138,112,.55); box-shadow:0 0 0 3px rgba(31,138,112,.14)}
+  .btn{
+    padding:12px 12px;border-radius:14px;border:1px solid rgba(20,24,33,.16);
+    background:rgba(31,138,112,.12);color:var(--text);cursor:pointer;
+    font-weight:800;
+  }
+  .btn:hover{filter:brightness(1.03)}
+  .btn.ok{background:rgba(23,143,99,.14)}
+  .btn.ghost{background:#ffffff}
+  .btn.danger{background:rgba(214,69,69,.12)}
+  .hint{font-size:12px;color:var(--muted);line-height:1.45}
+  .msg{margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(20,24,33,.14);background:rgba(16,22,36,.03);font-size:13px}
+  .msg.ok{border-color:rgba(23,143,99,.28); background:rgba(23,143,99,.08)}
+  .msg.err{border-color:rgba(214,69,69,.28); background:rgba(214,69,69,.08)}
+  .msg.warn{border-color:rgba(184,131,0,.28); background:rgba(184,131,0,.08)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .right{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .pill{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(16,22,36,.03);border:1px solid rgba(20,24,33,.12);font-size:12px}
+  .divider{height:1px;background:rgba(20,24,33,.10);margin:12px 0}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid rgba(20,24,33,.10);padding:10px 8px;text-align:left;vertical-align:top}
+  th{font-size:12px;color:var(--muted);font-weight:800;position:sticky;top:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px)}
+  code{background:rgba(16,22,36,.05);padding:2px 6px;border-radius:8px}
+  .step{
+    display:flex;gap:10px;align-items:flex-start;
+    padding:10px 12px;border-radius:16px;border:1px dashed rgba(20,24,33,.18);
+    background:rgba(16,22,36,.02);
+    margin-top:10px;
+  }
+  .step .n{
+    width:26px;height:26px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(31,138,112,.12);border:1px solid rgba(31,138,112,.25);
+    font-weight:900;color:var(--accent);
+  }
+  .step .t{font-weight:850}
+  .step .d{font-size:12px;color:var(--muted);line-height:1.35;margin-top:2px}
+  @media(max-width:820px){
+    .wrap{max-width:720px}
+    .tabbtn{padding:12px 14px;font-size:16px}
+    input,select{padding:14px 14px;font-size:16px}
+    .btn{padding:14px 14px;font-size:16px}
+    .field{min-width:100% !important}
+    th{position:static}
+  }
+  .field{flex:1;min-width:220px}
+
+  /* ===== Operação (Mobile-first) ===== */
+  .opMobile .row{align-items:stretch}
+  .opMobile .right{justify-content:stretch}
+  .opMobile .right .btn{flex:1}
+  .opMobile .btn{min-height:48px}
+  .opMobile input, .opMobile select{min-height:48px}
+  .opMobile .hint{font-size:13px}
+  .opMobile h2{font-size:18px}
+  .opMobile label{font-size:13px}
+  .opMobile .card{padding:14px}
+  .opMobile .step{border-style:solid}
+  @media(max-width:820px){
+    .opMobile .row{flex-direction:column;gap:10px}
+    .opMobile .field{min-width:100% !important}
+    .opMobile .btn{width:100%}
+    .opMobile input, .opMobile select{font-size:18px}
+    .opMobile .tabbtn{font-size:16px}
+    .opMobile .card{border-radius:18px}
+  }
+
+</style>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h1>Armazém — Operação & Controlo</h1>
+      <div class="row" style="align-items:center">
+        <span class="pill" id="authPill">Auth: —</span>
+        <button class="btn ghost" id="btnReload">Recarregar</button>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px;justify-content:space-between">
+      <div class="tabs" id="tabs"></div>
+
+      <div class="row" style="align-items:end">
+        <div class="field" style="min-width:220px">
+          <label>Email</label>
+          <input id="loginEmail" placeholder="email@empresa.com" />
+        </div>
+        <div class="field" style="min-width:220px">
+          <label>Password</label>
+          <input id="loginPass" type="password" placeholder="••••••••" />
+        </div>
+        <button class="btn ok" id="btnLogin">Login</button>
+        <button class="btn danger" id="btnLogout">Logout</button>
+        <div id="authMsg" style="flex:1;min-width:240px"></div>
+      </div>
+    </div>
+
+    <div class="hint" style="margin-top:10px">
+      ⚠️ Abre isto sempre em <b>HTTPS</b> (Firebase Hosting) ou em <code>http://localhost</code>. <b>Não funciona em file://</b>.
+      <br>Perfis: <b>@admin.com</b> (Admin+Operação) • <b>@wh.com</b> (Operação+Consulta).
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="view"></div>
+</div>
+
+<script type="module">
+  // ===== Firebase config (já preenchido) =====
+  const firebaseConfig = {
+    apiKey: "AIzaSyCFnPU0CZPtcMqPi_aq2XJVQodIgWZV4h0",
+    authDomain: "posicoeswh.firebaseapp.com",
+    projectId: "posicoeswh",
+    storageBucket: "posicoeswh.firebasestorage.app",
+    messagingSenderId: "234070238679",
+    appId: "1:234070238679:web:4ef11f08523c3b71055792",
+  };
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit, updateDoc,
+    writeBatch, runTransaction, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // ===== Coleções =====
+  const COL_PRODUCTS = "products";
+  const COL_POSITIONS = "positions";
+  const COL_STOCK = "stockItems";
+  const COL_MOVEMENTS = "movements";
+
+  // stockItems/{positionId__productId__palletId}
+  // { positionId, productId, palletBarcode, slotType:"PICKING"|"COMPLETA", qtyUnits, qtyPallets, updatedAt }
+
+  const $ = (id)=>document.getElementById(id);
+  const tabsEl = $("tabs");
+  const viewEl = $("view");
+  const authPill = $("authPill");
+
+  const state = { tab: "operacao", op: "arrumar", user: null, cache: { products: [], positions: [] } };
+
+  // ===== Perfis por domínio =====
+  function emailOfUser(u){ return (u && (u.email || u.providerData?.[0]?.email) || "").toLowerCase().trim(); }
+  function isAdminUser(u){ return emailOfUser(u).endsWith("@admin.com"); }
+  function isWhUser(u){ return emailOfUser(u).endsWith("@wh.com"); }
+  function canOperate(u){ return !!u && (isAdminUser(u) || isWhUser(u)); }
+  function canAdmin(u){ return !!u && isAdminUser(u); }
+
+  function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function msgBox(html, type=""){ return `<div class="msg ${type}">${html}</div>`; }
+  function normalizeBarcode(s){ return (s ?? "").toString().trim(); }
+
+  function encodeKey(str){
+    const u8 = new TextEncoder().encode(str);
+    let bin = "";
+    u8.forEach(b => bin += String.fromCharCode(b));
+    const b64 = btoa(bin);
+    return b64.replace(/=+$/,"").replace(/\+/g,"-").replace(/\//g,"_");
+  }
+  function palletIdFromBarcode(palletBarcode){
+    const b = normalizeBarcode(palletBarcode);
+    return b ? encodeKey(b) : "nopallet";
+  }
+  function stockKey(positionId, productId, palletId){ return `${positionId}__${productId}__${palletId}`; }
+
+  async function getProductByBarcode(barcode){
+    const b = normalizeBarcode(barcode);
+    if(!b) return null;
+    const snap = await getDoc(doc(db, COL_PRODUCTS, encodeKey(b)));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
+  }
+  async function getPositionByBarcode(barcode){
+    const b = normalizeBarcode(barcode);
+    if(!b) return null;
+    const snap = await getDoc(doc(db, COL_POSITIONS, encodeKey(b)));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
+  }
+
+  async function upsertProduct({name, barcode}){
+    const b = normalizeBarcode(barcode);
+    if(!name || !b) throw new Error("Nome e barcode são obrigatórios.");
+    await setDoc(doc(db, COL_PRODUCTS, encodeKey(b)), { name: name.trim(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
+  }
+  async function upsertPosition({code, barcode}){
+    const b = normalizeBarcode(barcode);
+    if(!code || !b) throw new Error("Posição e barcode são obrigatórios.");
+    await setDoc(doc(db, COL_POSITIONS, encodeKey(b)), { code: code.trim(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
+  }
+
+  async function loadAdminLists(){
+    const pSnap = await getDocs(collection(db, COL_PRODUCTS));
+    state.cache.products = pSnap.docs.map(d=>({id:d.id, ...d.data()}))
+      .sort((a,b)=>(a.name||"").localeCompare(b.name||"", "pt", {sensitivity:"base"}));
+    const sSnap = await getDocs(collection(db, COL_POSITIONS));
+    state.cache.positions = sSnap.docs.map(d=>({id:d.id, ...d.data()}))
+      .sort((a,b)=>(a.code||"").localeCompare(b.code||"", "pt", {sensitivity:"base"}));
+  }
+
+  function parseCSV(text){
+    const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(l=>l.trim().length>0);
+    if(lines.length===0) return [];
+    const hdr = lines[0];
+    const delim = (hdr.split(";").length > hdr.split(",").length) ? ";" : ",";
+    return lines.map(line => parseCSVLine(line, delim));
+  }
+  function parseCSVLine(line, delim){
+    const out = []; let cur=""; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch === '"'){
+        if(inQ && line[i+1] === '"'){ cur += '"'; i++; }
+        else inQ = !inQ;
+      }else if(ch === delim && !inQ){
+        out.push(cur); cur="";
+      }else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  // ===== Stock ops =====
+  async function addStock(positionId, productId, palletBarcode, slotType, deltaUnits, deltaPallets, origin){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Sem login.");
+    if(!canOperate(user)) throw new Error("Sem permissões.");
+
+    const palletId = palletIdFromBarcode(palletBarcode);
+    const key = stockKey(positionId, productId, palletId);
+    const ref = doc(db, COL_STOCK, key);
+    const pbc = normalizeBarcode(palletBarcode);
+
+    const dU = Number(deltaUnits || 0);
+    const dP = Number(deltaPallets || 0);
+
+    const org = (origin||"").toString().trim().toUpperCase();
+
+    await runTransaction(db, async (tx)=>{
+      const snap = await tx.get(ref);
+      const curU = snap.exists() ? Number(snap.data().qtyUnits || 0) : 0;
+      const curP = snap.exists() ? Number(snap.data().qtyPallets || 0) : 0;
+
+      const nextU = curU + dU;
+      const nextP = curP + dP;
+
+      if(nextU < 0) throw new Error("Stock insuficiente (UND).");
+      if(nextP < 0) throw new Error("Stock insuficiente (Paletes).");
+
+      if(nextU === 0 && nextP === 0){
+        tx.delete(ref);
+      }else{
+        tx.set(ref, {
+          positionId, productId,
+          palletBarcode: pbc || "",
+          slotType: slotType || "PICKING",
+          qtyUnits: nextU,
+          qtyPallets: nextP,
+          origin: (org==="NEW"||org==="RETURNS") ? org : (snap.exists() ? (snap.data().origin||"") : ""),
+          updatedAt: serverTimestamp()
+        }, { merge:true });
+      }
+
+      const mvRef = doc(collection(db, COL_MOVEMENTS));
+      tx.set(mvRef, {
+        type: (dU >= 0 || dP >= 0) ? "ARRUMAR" : "RETIRAR",
+        ts: serverTimestamp(),
+        userId: user.uid,
+        positionId,
+        productId,
+        palletBarcode: pbc || "",
+        slotType: slotType || "PICKING",
+        qtyUnits: Math.abs(dU),
+        qtyPallets: Math.abs(dP),
+        origin: ((dU>=0 || dP>=0) && (org==="NEW"||org==="RETURNS")) ? org : "",
+      });
+    });
+  }
+
+  async function moveStock(fromPositionId, toPositionId, productId, palletBarcode, units, pallets){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Sem login.");
+    if(!canOperate(user)) throw new Error("Sem permissões.");
+    if(fromPositionId === toPositionId) throw new Error("Origem = Destino.");
+
+    const palletId = palletIdFromBarcode(palletBarcode);
+    const pbc = normalizeBarcode(palletBarcode);
+
+    const u = Number(units || 0);
+    const p = Number(pallets || 0);
+    if(u <= 0 && p <= 0) throw new Error("Indica UND e/ou Paletes.");
+
+    const fromRef = doc(db, COL_STOCK, stockKey(fromPositionId, productId, palletId));
+    const toRef   = doc(db, COL_STOCK, stockKey(toPositionId, productId, palletId));
+
+    await runTransaction(db, async (tx)=>{
+      const fromSnap = await tx.get(fromRef);
+      const fromU = fromSnap.exists() ? Number(fromSnap.data().qtyUnits||0) : 0;
+      const fromP = fromSnap.exists() ? Number(fromSnap.data().qtyPallets||0) : 0;
+      if(fromU < u) throw new Error("Stock insuficiente (UND) na origem.");
+      if(fromP < p) throw new Error("Stock insuficiente (Paletes) na origem.");
+      const fromType = fromSnap.exists() ? (fromSnap.data().slotType || "PICKING") : "PICKING";
+
+      const toSnap = await tx.get(toRef);
+      const toU = toSnap.exists() ? Number(toSnap.data().qtyUnits||0) : 0;
+      const toP = toSnap.exists() ? Number(toSnap.data().qtyPallets||0) : 0;
+      const toType = toSnap.exists() ? (toSnap.data().slotType || fromType) : fromType;
+
+      const nextFromU = fromU - u;
+      const nextFromP = fromP - p;
+      const nextToU = toU + u;
+      const nextToP = toP + p;
+
+      if(nextFromU === 0 && nextFromP === 0) tx.delete(fromRef);
+      else tx.set(fromRef, { qtyUnits: nextFromU, qtyPallets: nextFromP, updatedAt: serverTimestamp() }, { merge:true });
+
+      tx.set(toRef, {
+        positionId: toPositionId,
+        productId,
+        palletBarcode: pbc || "",
+        slotType: toType,
+        qtyUnits: nextToU,
+        qtyPallets: nextToP,
+        updatedAt: serverTimestamp()
+      }, { merge:true });
+
+      const mvRef = doc(collection(db, COL_MOVEMENTS));
+      tx.set(mvRef, {
+        type: "MUDAR",
+        ts: serverTimestamp(),
+        userId: user.uid,
+        fromPositionId,
+        toPositionId,
+        productId,
+        palletBarcode: pbc || "",
+        qtyUnits: u,
+        qtyPallets: p
+      });
+    });
+  }
+
+  async function moveAllFromPosition(fromPositionId, toPositionId){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Sem login.");
+    if(!canOperate(user)) throw new Error("Sem permissões.");
+    if(fromPositionId === toPositionId) throw new Error("Origem = Destino.");
+
+    // "Mover tudo": para todos os stockItems daquela posição (inclui paletes)
+    const qy = query(collection(db, COL_STOCK), where("positionId","==", fromPositionId));
+    const snap = await getDocs(qy);
+    if(snap.empty) throw new Error("Origem sem stock.");
+
+    // Nota: batch com leituras para somar destino (simples)
+    const batch = writeBatch(db);
+    for(const d of snap.docs){
+      const data = d.data();
+      const prodId = data.productId;
+      const qtyU = Number(data.qtyUnits||0);
+      const qtyP = Number(data.qtyPallets||0);
+      const pbc = normalizeBarcode(data.palletBarcode || "");
+      const palId = palletIdFromBarcode(pbc);
+
+      if(qtyU<=0 && qtyP<=0) continue;
+
+      const toDocRef = doc(db, COL_STOCK, stockKey(toPositionId, prodId, palId));
+      const toSnap = await getDoc(toDocRef);
+      const toU = toSnap.exists() ? Number(toSnap.data().qtyUnits||0) : 0;
+      const toP = toSnap.exists() ? Number(toSnap.data().qtyPallets||0) : 0;
+      const slotType = toSnap.exists() ? (toSnap.data().slotType || data.slotType || "PICKING") : (data.slotType || "PICKING");
+
+      batch.set(toDocRef, {
+        positionId: toPositionId,
+        productId: prodId,
+        palletBarcode: pbc || "",
+        slotType,
+        qtyUnits: toU + qtyU,
+        qtyPallets: toP + qtyP,
+        updatedAt: serverTimestamp()
+      }, { merge:true });
+
+      batch.delete(d.ref);
+    }
+
+    const mvRef = doc(collection(db, COL_MOVEMENTS));
+    batch.set(mvRef, { type:"MUDAR_TUDO", ts:serverTimestamp(), userId:user.uid, fromPositionId, toPositionId });
+
+    await batch.commit();
+  }
+
+  // ===== UI base =====
+  function renderTabs(){
+    const u = auth.currentUser;
+    const showAdmin = canAdmin(u);
+
+    tabsEl.innerHTML = `
+      ${showAdmin ? `<button class="tabbtn ${state.tab==="admin"?"active":""}" data-tab="admin">Admin</button>` : ``}
+      <button class="tabbtn ${state.tab==="operacao"?"active":""}" data-tab="operacao">Operação</button>
+      <button class="tabbtn ${state.tab==="consultar"?"active":""}" data-tab="consultar">Consultar</button>
+      <button class="tabbtn ${state.tab==="movimentos"?"active":""}" data-tab="movimentos">Movimentos</button>
+      <button class="tabbtn ${state.tab==="paletes"?"active":""}" data-tab="paletes">Paletes</button>
+    `;
+
+    if(!showAdmin && state.tab==="admin") state.tab = "operacao";
+
+    tabsEl.querySelectorAll("button").forEach(b=>{
+      b.onclick = ()=>{ state.tab = b.dataset.tab; render(); };
+    });
+  }
+
+  function render(){
+    const u = auth.currentUser;
+
+    if(!u){
+      tabsEl.innerHTML = "";
+      viewEl.innerHTML = `<div class="card"><h2 style="margin:0 0 8px">Login obrigatório</h2><div class="hint">Faz login no topo para aceder.</div></div>`;
+      return;
+    }
+    if(!canOperate(u)){
+      tabsEl.innerHTML = "";
+      viewEl.innerHTML = `<div class="card"><h2 style="margin:0 0 8px">Sem acesso</h2><div class="hint">Usa email <b>@admin.com</b> ou <b>@wh.com</b>.</div></div>`;
+      return;
+    }
+
+    renderTabs();
+
+    if(state.tab==="admin"){
+      if(!canAdmin(u)){ state.tab="operacao"; renderOperacao(); return; }
+      renderAdmin(); return;
+    }
+    if(state.tab==="consultar"){ renderConsultar(); return; }
+    if(state.tab==="movimentos"){ renderMovimentos(); return; }
+    if(state.tab==="paletes"){ renderPaletes(); return; }
+    renderOperacao();
+  }
+
+  // ===== Admin (PC): produtos/posições =====
+  function renderAdmin(){
+    const u = auth.currentUser;
+    if(!canAdmin(u)){
+      viewEl.innerHTML = `<div class="card">${msgBox("Sem permissões para Admin.", "warn")}</div>`;
+      return;
+    }
+
+    viewEl.innerHTML = `
+      <div class="card">
+        <h2 style="margin:0 0 8px">Admin</h2>
+        <div class="hint">Produtos/Posições via CSV + editar.</div>
+        <div id="adminMsg">${msgBox(`✅ Logado: <span class="mono">${esc(u.uid)}</span>`, "ok")}</div>
+      </div>
+
+      <div class="grid two" style="margin-top:12px">
+        <div class="card">
+          <h2>Produtos</h2>
+          <div class="row">
+            <div class="field">
+              <label>Upload CSV (A=Produto, B=Barcode)</label>
+              <input type="file" id="pCsv" accept=".csv,text/csv" />
+              <div class="hint">1ª linha cabeçalho • delimitador <code>,</code> ou <code>;</code></div>
+            </div>
+            <div class="field"><label>Nome</label><input id="pName" placeholder="Nome produto" /></div>
+            <div class="field"><label>Barcode</label><input id="pBarcode" class="mono" placeholder="Picar/Escrever" /></div>
+            <div class="right">
+              <button class="btn ok" id="pSave">Guardar</button>
+              <button class="btn ghost" id="pReload">Atualizar</button>
+            <button class="btn ghost" id="pExport">Exportar Produtos (CSV ;)</button>
+              </div>
+          </div>
+          <div id="pMsg"></div>
+          <div class="divider"></div>
+          <div class="row"><div class="field"><label>Pesquisar</label><input id="pSearch" placeholder="nome ou barcode" /></div></div>
+          <div style="overflow:auto;max-height:420px;margin-top:10px">
+            <table><thead><tr><th>Produto</th><th>Barcode</th><th></th></tr></thead><tbody id="pTable"></tbody></table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Posições</h2>
+          <div class="row">
+            <div class="field">
+              <label>Upload CSV (A=Posição, B=Barcode)</label>
+              <input type="file" id="sCsv" accept=".csv,text/csv" />
+              <div class="hint">1ª linha cabeçalho • delimitador <code>,</code> ou <code>;</code></div>
+            </div>
+            <div class="field"><label>Posição</label><input id="sCode" placeholder="Ex.: A01-01" /></div>
+            <div class="field"><label>Barcode</label><input id="sBarcode" class="mono" placeholder="Picar/Escrever" /></div>
+            <div class="right">
+              <button class="btn ok" id="sSave">Guardar</button>
+              <button class="btn ghost" id="sReload">Atualizar</button>
+            </div>
+          </div>
+          <div id="sMsg"></div>
+          <div class="divider"></div>
+          <div class="row"><div class="field"><label>Pesquisar</label><input id="sSearch" placeholder="posição ou barcode" /></div></div>
+          <div style="overflow:auto;max-height:420px;margin-top:10px">
+            <table><thead><tr><th>Posição</th><th>Barcode</th><th></th></tr></thead><tbody id="sTable"></tbody></table>
+          </div>
+        </div>
+      </div>
+    `;
+
+    $("pCsv").onchange = async (e)=>{
+      const f = e.target.files && e.target.files[0];
+      if(!f) return;
+      try{
+        const rows = parseCSV(await f.text());
+        if(rows.length<=1) throw new Error("CSV sem dados.");
+        const imported = rows.slice(1).filter(r=>r.length>=2)
+          .map(r=>({name:(r[0]||"").trim(), barcode:normalizeBarcode(r[1])}))
+          .filter(x=>x.name && x.barcode);
+
+        const batch = writeBatch(db);
+        imported.forEach(item=>{
+          batch.set(doc(db, COL_PRODUCTS, encodeKey(item.barcode)), {name:item.name, barcode:item.barcode, updatedAt:serverTimestamp()}, {merge:true});
+        });
+        await batch.commit();
+        $("pMsg").innerHTML = msgBox(`✅ Importados/atualizados <b>${imported.length}</b> produtos.`, "ok");
+        await loadAdminLists(); renderProductsTable();
+      }catch(err){ $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+      finally{ e.target.value=""; }
+    };
+
+    $("pSave").onclick = async ()=>{
+      try{
+        await upsertProduct({name:$("pName").value, barcode:$("pBarcode").value});
+        $("pMsg").innerHTML = msgBox("✅ Guardado.", "ok");
+        $("pName").value=""; $("pBarcode").value="";
+        await loadAdminLists(); renderProductsTable();
+      }catch(err){ $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+    };
+    $("pReload").onclick = async ()=>{ await loadAdminLists(); renderProductsTable(); };
+    
+    $("pExport").onclick = async ()=>{
+      try{
+        $("pMsg").innerHTML = msgBox("A exportar produtos...", "");
+        await exportProductsCSV();
+        $("pMsg").innerHTML = msgBox("✅ Produtos exportados.", "ok");
+      }catch(err){
+        $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err");
+      }
+    };
+$("pSearch").oninput = renderProductsTable;
+
+    $("sCsv").onchange = async (e)=>{
+      const f = e.target.files && e.target.files[0];
+      if(!f) return;
+      try{
+        const rows = parseCSV(await f.text());
+        if(rows.length<=1) throw new Error("CSV sem dados.");
+        const imported = rows.slice(1).filter(r=>r.length>=2)
+          .map(r=>({code:(r[0]||"").trim(), barcode:normalizeBarcode(r[1])}))
+          .filter(x=>x.code && x.barcode);
+
+        const batch = writeBatch(db);
+        imported.forEach(item=>{
+          batch.set(doc(db, COL_POSITIONS, encodeKey(item.barcode)), {code:item.code, barcode:item.barcode, updatedAt:serverTimestamp()}, {merge:true});
+        });
+        await batch.commit();
+        $("sMsg").innerHTML = msgBox(`✅ Importadas/atualizadas <b>${imported.length}</b> posições.`, "ok");
+        await loadAdminLists(); renderPositionsTable();
+      }catch(err){ $("sMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+      finally{ e.target.value=""; }
+    };
+
+    $("sSave").onclick = async ()=>{
+      try{
+        await upsertPosition({code:$("sCode").value, barcode:$("sBarcode").value});
+        $("sMsg").innerHTML = msgBox("✅ Guardado.", "ok");
+        $("sCode").value=""; $("sBarcode").value="";
+        await loadAdminLists(); renderPositionsTable();
+      }catch(err){ $("sMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+    };
+    $("sReload").onclick = async ()=>{ await loadAdminLists(); renderPositionsTable(); };
+    $("sSearch").oninput = renderPositionsTable;
+
+    (async ()=>{ await loadAdminLists(); renderProductsTable(); renderPositionsTable(); })();
+
+    function renderProductsTable(){
+      const term = ($("pSearch").value||"").toLowerCase().trim();
+      const list = state.cache.products.filter(p=>{
+        const n=(p.name||"").toLowerCase();
+        const b=normalizeBarcode(p.barcode).toLowerCase();
+        return !term || n.includes(term) || b.includes(term);
+      });
+
+      $("pTable").innerHTML = list.map(p=>`
+        <tr>
+          <td><input data-id="${p.id}" data-k="name" value="${esc(p.name||"")}" /></td>
+          <td><input class="mono" data-id="${p.id}" data-k="barcode" value="${esc(p.barcode||"")}" /></td>
+          <td style="white-space:nowrap">
+            <button class="btn ghost" data-act="save" data-id="${p.id}">Guardar</button>
+            <button class="btn danger" data-act="del" data-id="${p.id}">Apagar</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="3">Sem produtos.</td></tr>`;
+
+      $("pTable").querySelectorAll("button").forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.dataset.id, act = btn.dataset.act;
+          try{
+            if(act==="del"){
+              if(!confirm("Apagar produto?")) return;
+              await deleteDoc(doc(db, COL_PRODUCTS, id));
+              await loadAdminLists(); renderProductsTable();
+              $("pMsg").innerHTML = msgBox("✅ Apagado.", "ok");
+            }else{
+              const name = $("pTable").querySelector(`input[data-id="${id}"][data-k="name"]`).value.trim();
+              const barcode = normalizeBarcode($("pTable").querySelector(`input[data-id="${id}"][data-k="barcode"]`).value);
+              if(!name || !barcode) throw new Error("Nome e barcode obrigatórios.");
+              const newId = encodeKey(barcode);
+              await setDoc(doc(db, COL_PRODUCTS, newId), {name, barcode, updatedAt:serverTimestamp()}, {merge:true});
+              if(newId !== id) await deleteDoc(doc(db, COL_PRODUCTS, id));
+              await loadAdminLists(); renderProductsTable();
+              $("pMsg").innerHTML = msgBox("✅ Guardado.", "ok");
+            }
+          }catch(err){ $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+        };
+      });
+    }
+
+    function renderPositionsTable(){
+      const term = ($("sSearch").value||"").toLowerCase().trim();
+      const list = state.cache.positions.filter(p=>{
+        const c=(p.code||"").toLowerCase();
+        const b=normalizeBarcode(p.barcode).toLowerCase();
+        return !term || c.includes(term) || b.includes(term);
+      });
+
+      $("sTable").innerHTML = list.map(p=>`
+        <tr>
+          <td><input data-id="${p.id}" data-k="code" value="${esc(p.code||"")}" /></td>
+          <td><input class="mono" data-id="${p.id}" data-k="barcode" value="${esc(p.barcode||"")}" /></td>
+          <td style="white-space:nowrap">
+            <button class="btn ghost" data-act="save" data-id="${p.id}">Guardar</button>
+            <button class="btn danger" data-act="del" data-id="${p.id}">Apagar</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="3">Sem posições.</td></tr>`;
+
+      $("sTable").querySelectorAll("button").forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.dataset.id, act = btn.dataset.act;
+          try{
+            if(act==="del"){
+              if(!confirm("Apagar posição?")) return;
+              await deleteDoc(doc(db, COL_POSITIONS, id));
+              await loadAdminLists(); renderPositionsTable();
+              $("sMsg").innerHTML = msgBox("✅ Apagado.", "ok");
+            }else{
+              const code = $("sTable").querySelector(`input[data-id="${id}"][data-k="code"]`).value.trim();
+              const barcode = normalizeBarcode($("sTable").querySelector(`input[data-id="${id}"][data-k="barcode"]`).value);
+              if(!code || !barcode) throw new Error("Posição e barcode obrigatórios.");
+              const newId = encodeKey(barcode);
+              await setDoc(doc(db, COL_POSITIONS, newId), {code, barcode, updatedAt:serverTimestamp()}, {merge:true});
+              if(newId !== id) await deleteDoc(doc(db, COL_POSITIONS, id));
+              await loadAdminLists(); renderPositionsTable();
+              $("sMsg").innerHTML = msgBox("✅ Guardado.", "ok");
+            }
+          }catch(err){ $("sMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+        };
+      });
+    }
+  }
+
+  // ===== Operação (mobile simples) =====
+  function renderOperacao(){
+    viewEl.innerHTML = `
+      <div class="opMobile">
+      <div class="card">
+        <h2 style="margin:0 0 8px">Operação</h2>
+        <div class="hint">Arrumar / Mudar / Retirar. (Consulta está no separador “Consultar”)</div>
+        <div class="row" style="margin-top:10px">
+          <button class="tabbtn ${state.op==="arrumar"?"active":""}" data-op="arrumar">Arrumar</button>
+          <button class="tabbtn ${state.op==="mudar"?"active":""}" data-op="mudar">Mudar</button>
+          <button class="tabbtn ${state.op==="retirar"?"active":""}" data-op="retirar">Retirar</button>
+        </div>
+        <div id="opMsg">${msgBox(`✅ Logado: <span class="mono">${esc(auth.currentUser.uid)}</span>`, "ok")}</div>
+      </div>
+      <div id="opView" style="margin-top:12px"></div>
+    `;
+
+    viewEl.querySelectorAll("button[data-op]").forEach(b=>{
+      b.onclick = ()=>{ state.op = b.dataset.op; renderOperacaoBody(); };
+    });
+
+    renderOperacaoBody();
+  }
+
+  function renderOperacaoBody(){
+    const opView = $("opView");
+
+    if(state.op==="arrumar"){
+      opView.innerHTML = `
+        <div class="card">
+          <h2>Arrumar</h2>
+
+          <div class="step"><div class="n">1</div><div><div class="t">Picar POSIÇÃO</div><div class="d">Confirma que a posição existe antes de avançar.</div></div></div>
+          <div class="step"><div class="n">2</div><div><div class="t">Picar PRODUTO</div><div class="d">Escolhe também o tipo: PICKING ou COMPLETA.</div></div></div>
+          <div class="step"><div class="n">3</div><div><div class="t">Palete (opcional) + Quantidades</div><div class="d">Preenche UND e/ou Paletes e confirma.</div></div></div>
+
+          <div class="row">
+            <div class="field">
+              <label>POSIÇÃO (barcode)</label>
+              <input id="aPos" class="mono" placeholder="Picar posição..." />
+              <div class="hint" id="aPosInfo"></div>
+            </div>
+            <div class="field">
+              <label>PRODUTO (barcode)</label>
+              <input id="aProd" class="mono" placeholder="Picar produto..." disabled />
+              <div class="hint" id="aProdInfo"></div>
+            </div>
+            <div class="field">
+              <label>PALETE (barcode) — opcional</label>
+              <input id="aPal" class="mono" placeholder="Picar palete (opcional)..." disabled />
+              <div class="hint">Se não preencher, fica “sem palete”.</div>
+            </div>
+            <div class="field">
+              <label>TIPO</label>
+              <select id="aType" disabled>
+                <option value="PICKING">PICKING</option>
+                <option value="COMPLETA">COMPLETA</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Origem</label>
+              <select id="aOrigin" disabled>
+                <option value="" selected>Selecionar…</option>
+                <option value="NEW">NEW</option>
+                <option value="RETURNS">RETURNS</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>QTD (UND)</label>
+              <input id="aQtyU" type="number" min="0" step="1" placeholder="Ex.: 10" disabled />
+            </div>
+            <div class="field">
+              <label>QTD (PALETES)</label>
+              <input id="aQtyP" type="number" min="0" step="1" placeholder="Ex.: 1" disabled />
+            </div>
+          </div>
+          <div class="right">
+            <button class="btn ok" id="aOk" disabled>Confirmar</button>
+            <button class="btn ghost" id="aClear">Limpar</button>
+          </div>
+          <div id="aMsg"></div>
+        </div>
+      `;
+      setupArrumar();
+    }
+
+    if(state.op==="retirar"){
+      opView.innerHTML = `
+        <div class="card">
+          <h2>Retirar</h2>
+
+          <div class="step"><div class="n">1</div><div><div class="t">Picar POSIÇÃO</div><div class="d">Onde vais retirar.</div></div></div>
+          <div class="step"><div class="n">2</div><div><div class="t">Picar PRODUTO</div><div class="d">Confirma o produto antes de retirar.</div></div></div>
+          <div class="step"><div class="n">3</div><div><div class="t">Palete (opcional) + Quantidades</div><div class="d">Preenche UND e/ou Paletes e confirma.</div></div></div>
+
+          <div class="row">
+            <div class="field">
+              <label>POSIÇÃO (barcode)</label>
+              <input id="rPos" class="mono" placeholder="Picar posição..." />
+              <div class="hint" id="rPosInfo"></div>
+            </div>
+            <div class="field">
+              <label>PRODUTO (barcode)</label>
+              <input id="rProd" class="mono" placeholder="Picar produto..." disabled />
+              <div class="hint" id="rProdInfo"></div>
+            </div>
+            <div class="field">
+              <label>PALETE (barcode) — opcional</label>
+              <input id="rPal" class="mono" placeholder="Picar palete (opcional)..." disabled />
+              <div class="hint">Se não preencher, retira do registo “sem palete”.</div>
+            </div>
+            <div class="field">
+              <label>QTD (UND)</label>
+              <input id="rQtyU" type="number" min="0" step="1" placeholder="Ex.: 3" disabled />
+            </div>
+            <div class="field">
+              <label>QTD (PALETES)</label>
+              <input id="rQtyP" type="number" min="0" step="1" placeholder="Ex.: 1" disabled />
+            </div>
+          </div>
+          <div class="right">
+            <button class="btn ok" id="rOk" disabled>Confirmar</button>
+            <button class="btn ghost" id="rClear">Limpar</button>
+          </div>
+          <div id="rMsg"></div>
+        </div>
+      `;
+      setupRetirar();
+    }
+
+    if(state.op==="mudar"){
+      opView.innerHTML = `
+        <div class="card">
+          <h2>Mudar</h2>
+
+          <div class="step"><div class="n">1</div><div><div class="t">Picar ORIGEM e DESTINO</div><div class="d">Primeiro a origem, depois o destino.</div></div></div>
+          <div class="step"><div class="n">2</div><div><div class="t">Picar PRODUTO</div><div class="d">Opcional: palete para mover registo específico.</div></div></div>
+          <div class="step"><div class="n">3</div><div><div class="t">Quantidades e confirmar</div><div class="d">Preenche UND e/ou Paletes. Ou usa “TUDO”.</div></div></div>
+
+          <div class="hint">Mover 1 produto (com QTD) ou TUDO da origem.</div>
+          <div class="row" style="margin-top:10px">
+            <div class="field">
+              <label>ORIGEM (barcode)</label>
+              <input id="mFrom" class="mono" placeholder="Picar origem..." />
+              <div class="hint" id="mFromInfo"></div>
+            </div>
+            <div class="field">
+              <label>DESTINO (barcode)</label>
+              <input id="mTo" class="mono" placeholder="Picar destino..." disabled />
+              <div class="hint" id="mToInfo"></div>
+            </div>
+            <div class="field">
+              <label>PRODUTO (barcode)</label>
+              <input id="mProd" class="mono" placeholder="Picar produto..." disabled />
+              <div class="hint" id="mProdInfo"></div>
+            </div>
+            <div class="field">
+              <label>PALETE (barcode) — opcional</label>
+              <input id="mPal" class="mono" placeholder="Picar palete (opcional)..." disabled />
+            </div>
+            <div class="field">
+              <label>QTD (UND)</label>
+              <input id="mQtyU" type="number" min="0" step="1" placeholder="Ex.: 5" disabled />
+            </div>
+            <div class="field">
+              <label>QTD (PALETES)</label>
+              <input id="mQtyP" type="number" min="0" step="1" placeholder="Ex.: 1" disabled />
+            </div>
+          </div>
+          <div class="right">
+            <button class="btn ok" id="mOk" disabled>Transferir</button>
+            <button class="btn ghost" id="mAll" disabled>TUDO</button>
+            <button class="btn ghost" id="mClear">Limpar</button>
+          </div>
+          <div id="mMsg"></div>
+        </div>
+      `;
+      setupMudar();
+    }
+  }
+
+  function setupArrumar(){
+    const aPos=$("aPos"), aProd=$("aProd"), aPal=$("aPal"), aType=$("aType"), aOrigin=$("aOrigin"), aQtyU=$("aQtyU"), aQtyP=$("aQtyP"), aOk=$("aOk"), aClear=$("aClear");
+    const aMsg=$("aMsg"), aPosInfo=$("aPosInfo"), aProdInfo=$("aProdInfo");
+    let pos=null, prod=null;
+
+    const reset=()=>{
+      pos=prod=null; aPos.value=""; aProd.value=""; aPal.value=""; aQtyU.value=""; aQtyP.value="";
+      aProd.disabled=true; aPal.disabled=true; aQtyU.disabled=true; aQtyP.disabled=true; aType.disabled=true; aOrigin.disabled=true; aOk.disabled=true;
+      aPosInfo.textContent=""; aProdInfo.textContent=""; aMsg.innerHTML="";
+      aPos.focus();
+    };
+    const enable=()=>{
+      const u=Math.floor(Number(aQtyU.value||0));
+      const p=Math.floor(Number(aQtyP.value||0));
+      aOk.disabled=!(pos && prod && (u>0 || p>0) && (aOrigin.value==="NEW" || aOrigin.value==="RETURNS"));
+    };
+
+    aPos.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDefault();
+      try{
+        pos = await getPositionByBarcode(aPos.value);
+        if(!pos) throw new Error("Posição não encontrada.");
+        aPosInfo.textContent = "✅ " + (pos.code||"");
+        aProd.disabled=false; aProd.focus(); aMsg.innerHTML="";
+      }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
+    }});
+    aProd.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDefault();
+      try{
+        prod = await getProductByBarcode(aProd.value);
+        if(!prod) throw new Error("Produto não encontrado.");
+        aProdInfo.textContent = "✅ " + (prod.name||"");
+        aPal.disabled=false; aType.disabled=false; aOrigin.disabled=false; aQtyU.disabled=false; aQtyP.disabled=false;
+        aPal.focus(); aMsg.innerHTML="";
+        enable();
+      }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
+    }});
+
+    aPal.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); aQtyU.focus(); }});
+    aQtyU.addEventListener("input", enable);
+    aQtyP.addEventListener("input", enable);
+    aQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); aOk.click(); }});
+    aQtyP.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); aOk.click(); }});
+    aOk.onclick = async ()=>{
+      try{
+        const qtyU=Math.floor(Number(aQtyU.value||0));
+        const qtyP=Math.floor(Number(aQtyP.value||0));
+        const origin=(aOrigin.value||"").trim();
+        if(!(origin==="NEW" || origin==="RETURNS")) throw new Error("Seleciona a ORIGEM (NEW/RETURNS).");
+        if(!(pos && prod && (qtyU>0 || qtyP>0))) throw new Error("Falta QTD (UND e/ou Paletes).");
+        await addStock(pos.id, prod.id, aPal.value, aType.value, qtyU, qtyP, origin);
+        aMsg.innerHTML = msgBox(`✅ OK • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(aType.value)} • ${esc(origin)} • +${qtyU} UND • +${qtyP} Pal`, "ok");
+        // manter posição/produto para repetir
+        aPal.value=""; aQtyU.value=""; aQtyP.value="";
+        aOk.disabled=true;
+        aPal.focus();
+      }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
+    };
+
+    aClear.onclick = reset;
+    reset();
+  }
+
+  
+  async function resolvePalletProduct(positionId, palletBarcode){
+    const pbc = normalizeBarcode(palletBarcode);
+    if(!positionId || !pbc) return { ok:false, reason:"sem_dados" };
+
+    const qy = query(
+      collection(db, COL_STOCK),
+      where("positionId", "==", positionId),
+      where("palletBarcode", "==", pbc)
+    );
+    const snap = await getDocs(qy);
+
+    if(snap.empty) return { ok:false, reason:"nao_encontrado", pbc };
+    if(snap.size > 1) return { ok:false, reason:"multiplo", pbc, count:snap.size };
+
+    const s = snap.docs[0].data();
+    const prodId = s.productId;
+    const prodSnap = await getDoc(doc(db, COL_PRODUCTS, prodId));
+    const product = prodSnap.exists() ? ({ id:prodId, ...prodSnap.data() }) : ({ id:prodId, name:prodId, barcode:"" });
+
+    return { ok:true, pbc, productId:prodId, product, stock:s };
+  }
+
+  async function resolvePalletGlobal(palletBarcode){
+    const pbc = normalizeBarcode(palletBarcode);
+    if(!pbc) return { ok:false, reason:"sem_dados" };
+
+    const qy = query(
+      collection(db, COL_STOCK),
+      where("palletBarcode", "==", pbc)
+    );
+    const snap = await getDocs(qy);
+
+    if(snap.empty) return { ok:false, reason:"nao_encontrado", pbc };
+
+    // Map results with position/product info
+    const docs = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    const posIds = [...new Set(docs.map(x=>x.positionId).filter(Boolean))];
+    const prodIds = [...new Set(docs.map(x=>x.productId).filter(Boolean))];
+
+    const posSnaps = await Promise.all(posIds.map(id=>getDoc(doc(db, COL_POSITIONS, id))));
+    const prodSnaps = await Promise.all(prodIds.map(id=>getDoc(doc(db, COL_PRODUCTS, id))));
+
+    const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? ({id, ...posSnaps[i].data()}) : ({id, code:id}) ]));
+    const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? ({id, ...prodSnaps[i].data()}) : ({id, name:id, barcode:""}) ]));
+
+    const rows = docs.map(s=>{
+      const pos = posMap.get(s.positionId) || {id:s.positionId, code:s.positionId};
+      const prod = prodMap.get(s.productId) || {id:s.productId, name:s.productId, barcode:""};
+      return { stock:s, position:pos, product:prod };
+    });
+
+    // If more than 1, return list to choose
+    if(rows.length > 1) return { ok:false, reason:"multiplo", pbc, rows };
+
+    return { ok:true, pbc, ...rows[0] };
+  }
+
+
+function setupRetirar(){
+    const rPos=$("rPos"), rProd=$("rProd"), rPal=$("rPal"), rQtyU=$("rQtyU"), rQtyP=$("rQtyP"), rOk=$("rOk"), rClear=$("rClear");
+    const rMsg=$("rMsg");
+
+    let pos=null, prod=null, pal=null;
+
+    // ===== Modo A: Sem palete (como antes) -> posição -> produto -> qty
+    async function handlePosEnter(){
+      const code = normalizeBarcode(rPos.value);
+      const p = await getPositionByCode(code);
+      if(!p){ rMsg.innerHTML = msgBox("Posição não encontrada.", "err"); return; }
+      pos = p;
+      rMsg.innerHTML = msgBox(`Posição OK: <b>${esc(pos.code)}</b>`, "ok");
+      rProd.disabled = false;
+      rProd.focus();
+    }
+    async function handleProdEnter(){
+      const bc = normalizeBarcode(rProd.value);
+      const p = await getProductByBarcode(bc);
+      if(!p){ rMsg.innerHTML = msgBox("Produto não encontrado.", "err"); return; }
+      prod = p;
+      rMsg.innerHTML = msgBox(`Produto OK: <b>${esc(prod.name)}</b>`, "ok");
+      rQtyU.disabled=false; rQtyP.disabled=false;
+      rQtyU.focus();
+      enable();
+    }
+
+    // ===== Modo B: Com palete -> palete -> resolve origem+produto -> qty
+    function setResolved(res){
+      pos = res.position;
+      prod = res.product;
+      pal = res.pbc;
+
+      rPos.value = pos.code || "";
+      rProd.value = prod.barcode || "";
+      rPal.value = pal || "";
+
+      // bloquear origem/produto (vêm da palete)
+      rPos.disabled = true;
+      rProd.disabled = true;
+
+      rQtyU.disabled=false; rQtyP.disabled=false;
+      rQtyU.focus();
+
+      rMsg.innerHTML = msgBox(`Palete OK • Origem: <b>${esc(pos.code)}</b> • Produto: <b>${esc(prod.name)}</b>`, "ok");
+      enable();
+    }
+
+    function reset(){
+      pos=prod=pal=null;
+      rPos.value=""; rProd.value=""; rPal.value=""; rQtyU.value=""; rQtyP.value="";
+      // dual: pode começar por palete OU por posição
+      rPal.disabled = false;
+      rPos.disabled = false;
+      rProd.disabled = true;
+      rQtyU.disabled = true;
+      rQtyP.disabled = true;
+      rOk.disabled = true;
+      rMsg.innerHTML = msgBox('Escolhe um método: <b>pica PALETE</b> (se tiver código) ou <b>pica POSIÇÃO</b> (se não tiver).', "warn");
+      rPal.focus();
+    }
+    reset();
+    rClear.onclick = reset;
+
+    rPal.addEventListener("keydown", async (e)=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        const code = normalizeBarcode(rPal.value);
+        if(!code){
+          // sem palete -> usar fluxo antigo
+          rMsg.innerHTML = msgBox("Sem código de palete: usa POSIÇÃO → PRODUTO.", "warn");
+          rPos.focus();
+          return;
+        }
+
+        const res = await resolvePalletGlobal(code);
+        if(res.ok){ setResolved(res); return; }
+
+        if(res.reason==="multiplo"){
+          const rows = res.rows || [];
+          rMsg.innerHTML = `
+            <div class="msg warn">
+              Esta palete existe em mais do que uma linha. Escolhe:
+              <div style="margin-top:8px;display:grid;gap:8px">
+                ${rows.map((x,i)=>`
+                  <button class="btn ghost" data-choice="${i}">
+                    ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
+                  </button>
+                `).join("")}
+              </div>
+            </div>`;
+          rMsg.querySelectorAll("[data-choice]").forEach(btn=>{
+            btn.onclick = ()=>{
+              const i = Number(btn.getAttribute("data-choice"));
+              setResolved({ pbc: res.pbc, ...rows[i] });
+            };
+          });
+          return;
+        }
+
+        rMsg.innerHTML = msgBox("Palete não encontrada. Se esta palete não tiver código, usa POSIÇÃO → PRODUTO.", "err");
+        rPos.focus();
+      }
+    });
+
+    rPos.addEventListener("keydown", async (e)=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        if(pal){ return; } // já estamos em modo palete
+        if(!rPos.value){ rMsg.innerHTML = msgBox("Pica a POSIÇÃO.", "warn"); return; }
+        await handlePosEnter();
+        enable();
+      }
+    });
+
+    rProd.addEventListener("keydown", async (e)=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        if(pal){ return; } // em modo palete produto é auto
+        if(!(pos)){ rMsg.innerHTML = msgBox("Primeiro pica a POSIÇÃO.", "warn"); return; }
+        await handleProdEnter();
+        enable();
+      }
+    });
+
+    function enable(){
+      const u=Math.floor(Number(rQtyU.value||0));
+      const p=Math.floor(Number(rQtyP.value||0));
+      rOk.disabled = !(pos && prod && (u>0 || p>0));
+    }
+    rQtyU.addEventListener("input", enable);
+    rQtyP.addEventListener("input", enable);
+    rQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); rOk.click(); }});
+    rQtyP.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); rOk.click(); }});
+
+    rOk.onclick = async ()=>{
+      try{
+        if(!pos) throw new Error("Falta POSIÇÃO (ou PALETE).");
+        if(!prod) throw new Error("Falta PRODUTO.");
+        const qtyU=Math.floor(Number(rQtyU.value||0));
+        const qtyP=Math.floor(Number(rQtyP.value||0));
+        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD (UND e/ou Paletes).");
+
+        const palletToUse = pal ? pal : (rPal.value || "");
+        await addStock(pos.id, prod.id, palletToUse, "PICKING", -qtyU, -qtyP);
+
+        rMsg.innerHTML = msgBox(`✅ RETIRADO • ${esc(pos.code)} • ${esc(prod.name)} • ${palletToUse?esc(palletToUse):"—"} • -${qtyU} UND • -${qtyP} Pal`, "ok");
+        rQtyU.value=""; rQtyP.value="";
+        rQtyU.focus();
+        enable();
+      }catch(err){
+        rMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+      }
+    };
+  }
+
+  function setupMudar(){
+    const mFrom=$("mFrom"), mTo=$("mTo"), mProd=$("mProd"), mPal=$("mPal"), mQtyU=$("mQtyU"), mQtyP=$("mQtyP"), mAll=$("mAll"), mOk=$("mOk"), mClear=$("mClear");
+    const mMsg=$("mMsg");
+
+    let fromPos=null, toPos=null, prod=null, pal=null;
+
+    // ===== Modo A: Sem palete -> ORIGEM -> DESTINO -> PRODUTO -> qty (palete opcional)
+    async function handleFromEnter(){
+      const code = normalizeBarcode(mFrom.value);
+      const p = await getPositionByCode(code);
+      if(!p){ mMsg.innerHTML = msgBox("Origem não encontrada.", "err"); return; }
+      fromPos = p;
+      mMsg.innerHTML = msgBox(`Origem OK: <b>${esc(fromPos.code)}</b>`, "ok");
+      mTo.disabled=false;
+      mTo.focus();
+    }
+    async function handleToEnter(){
+      const code = normalizeBarcode(mTo.value);
+      const p = await getPositionByCode(code);
+      if(!p){ mMsg.innerHTML = msgBox("Destino não encontrado.", "err"); return; }
+      toPos = p;
+      mMsg.innerHTML = msgBox(`Destino OK: <b>${esc(toPos.code)}</b>`, "ok");
+      mProd.disabled=false;
+      mPal.disabled=false;
+      mProd.focus();
+      enable();
+    }
+    async function handleProdEnter(){
+      const bc = normalizeBarcode(mProd.value);
+      const p = await getProductByBarcode(bc);
+      if(!p){ mMsg.innerHTML = msgBox("Produto não encontrado.", "err"); return; }
+      prod = p;
+      mMsg.innerHTML = msgBox(`Produto OK: <b>${esc(prod.name)}</b>`, "ok");
+      mQtyU.disabled=false; mQtyP.disabled=false;
+      mAll.disabled=false;
+      mQtyU.focus();
+      enable();
+    }
+
+    // ===== Modo B: Com palete -> palete -> resolve origem+produto -> destino -> qty
+    function setResolved(res){
+      fromPos = res.position;
+      prod = res.product;
+      pal = res.pbc;
+
+      mFrom.value = fromPos.code || "";
+      mProd.value = prod.barcode || "";
+      mPal.value = pal || "";
+
+      mFrom.disabled = true;
+      mProd.disabled = true;
+
+      mTo.disabled = false;
+      mTo.focus();
+
+      mMsg.innerHTML = msgBox(`Palete OK • Origem: <b>${esc(fromPos.code)}</b> • Produto: <b>${esc(prod.name)}</b>`, "ok");
+      enable();
+    }
+
+    function reset(){
+      fromPos=toPos=prod=pal=null;
+      mFrom.value=""; mTo.value=""; mProd.value=""; mPal.value=""; mQtyU.value=""; mQtyP.value="";
+      // dual: pode começar por PALETE OU por ORIGEM
+      mPal.disabled = false;
+      mFrom.disabled = false;
+      mTo.disabled = true;
+      mProd.disabled = true;
+      mQtyU.disabled = true;
+      mQtyP.disabled = true;
+      mAll.disabled = true;
+      mOk.disabled = true;
+      mMsg.innerHTML = msgBox('Escolhe um método: <b>pica PALETE</b> (se tiver código) ou <b>pica ORIGEM</b> (se não tiver).', "warn");
+      mPal.focus();
+    }
+    reset();
+    mClear.onclick = reset;
+
+    // Palete primeiro (se tiver)
+    mPal.addEventListener("keydown", async (e)=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        const code = normalizeBarcode(mPal.value);
+        if(!code){
+          mMsg.innerHTML = msgBox("Sem código de palete: usa ORIGEM → DESTINO → PRODUTO.", "warn");
+          mFrom.focus();
+          return;
+        }
+
+        const res = await resolvePalletGlobal(code);
+        if(res.ok){ setResolved(res); return; }
+
+        if(res.reason==="multiplo"){
+          const rows = res.rows || [];
+          mMsg.innerHTML = `
+            <div class="msg warn">
+              Esta palete existe em mais do que uma linha. Escolhe:
+              <div style="margin-top:8px;display:grid;gap:8px">
+                ${rows.map((x,i)=>`
+                  <button class="btn ghost" data-choice="${i}">
+                    ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
+                  </button>
+                `).join("")}
+              </div>
+            </div>`;
+          mMsg.querySelectorAll("[data-choice]").forEach(btn=>{
+            btn.onclick = ()=>{
+              const i = Number(btn.getAttribute("data-choice"));
+              setResolved({ pbc: res.pbc, ...rows[i] });
+            };
+          });
+          return;
+        }
+
+        mMsg.innerHTML = msgBox("Palete não encontrada. Se não tiver código, usa ORIGEM → DESTINO → PRODUTO.", "err");
+        mFrom.focus();
+      }
+    });
+
+    // Fluxo antigo: origem/dest/prod
+    mFrom.addEventListener("keydown", async (e)=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        if(pal){ return; } // já em modo palete
+        if(!mFrom.value){ mMsg.innerHTML = msgBox("Pica a ORIGEM.", "warn"); return; }
+        await handleFromEnter();
+        enable();
+      }
+    });
+    mTo.addEventListener("keydown", async (e)=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        if(!fromPos){ mMsg.innerHTML = msgBox("Primeiro ORIGEM (ou PALETE).", "warn"); return; }
+        if(!mTo.value){ mMsg.innerHTML = msgBox("Pica o DESTINO.", "warn"); return; }
+        await handleToEnter();
+      }
+    });
+    mProd.addEventListener("keydown", async (e)=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        if(pal){ return; } // em modo palete produto é auto
+        if(!(fromPos && toPos)){ mMsg.innerHTML = msgBox("Primeiro ORIGEM e DESTINO.", "warn"); return; }
+        await handleProdEnter();
+      }
+    });
+
+    function enable(){
+      const u=Math.floor(Number(mQtyU.value||0));
+      const p=Math.floor(Number(mQtyP.value||0));
+      mOk.disabled = !(fromPos && toPos && prod && (u>0 || p>0));
+      // TUDO só se houver palete (porque é por registo)
+      mAll.disabled = !(fromPos && toPos && prod && (pal || normalizeBarcode(mPal.value)));
+    }
+    mQtyU.addEventListener("input", enable);
+    mQtyP.addEventListener("input", enable);
+    mQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); mOk.click(); }});
+    mQtyP.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); mOk.click(); }});
+
+    mAll.onclick = async ()=>{
+      try{
+        if(!(fromPos && toPos && prod)) throw new Error("Falta ORIGEM/DESTINO/PRODUTO.");
+        const palletToUse = pal ? pal : normalizeBarcode(mPal.value);
+        if(!palletToUse) throw new Error("Para MUDAR TUDO precisas de PALETE com código.");
+        const res = await resolvePalletProduct(fromPos.id, palletToUse);
+        if(!res.ok) throw new Error("Não consegui obter o stock dessa palete na origem.");
+        const u = Number(res.stock.qtyUnits||0);
+        const p = Number(res.stock.qtyPallets||0);
+        if(!(u>0 || p>0)) throw new Error("Sem stock nesta palete.");
+        await moveStock(fromPos.id, toPos.id, prod.id, palletToUse, u, p);
+        mMsg.innerHTML = msgBox(`✅ MUDADO TUDO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${esc(palletToUse)} • ${u} UND • ${p} Pal`, "ok");
+        mQtyU.value=""; mQtyP.value="";
+        enable();
+      }catch(err){
+        mMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+      }
+    };
+
+    mOk.onclick = async ()=>{
+      try{
+        if(!(fromPos && toPos)) throw new Error("Falta ORIGEM/DESTINO.");
+        if(!prod) throw new Error("Falta PRODUTO.");
+        const qtyU=Math.floor(Number(mQtyU.value||0));
+        const qtyP=Math.floor(Number(mQtyP.value||0));
+        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD (UND e/ou Paletes).");
+        const palletToUse = pal ? pal : (mPal.value || "");
+        await moveStock(fromPos.id, toPos.id, prod.id, palletToUse, qtyU, qtyP);
+        mMsg.innerHTML = msgBox(`✅ MUDADO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${palletToUse?esc(palletToUse):"—"} • ${qtyU} UND • ${qtyP} Pal`, "ok");
+        mQtyU.value=""; mQtyP.value=""; 
+        mQtyU.focus();
+        enable();
+      }catch(err){
+        mMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+      }
+    };
+  }
+
+  // ===== Consultar (PC e Mobile) =====
+  function renderConsultar(){
+    viewEl.innerHTML = `
+      <div class="card">
+        <h2 style="margin:0 0 8px">Consultar</h2>
+        <div class="hint">Ver onde estão <b>paletes/produtos</b> (por produto) e o que existe numa <b>posição</b> (por posição).</div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost" id="btnExportStock">Exportar Stock (CSV ;)</button>
+          <button class="btn ghost" id="btnExportMov" style="display:none">Exportar Movimentos (CSV ;)</button>
+          <div class="hint" id="exportHint" style="margin-left:6px"></div>
+        </div>
+      </div>
+
+      <div class="grid two" style="margin-top:12px">
+        <div class="card">
+          <h2>Por Produto</h2>
+          <div class="hint">Pica o barcode do produto para ver as posições e as paletes.</div>
+          <div class="row" style="margin-top:10px">
+            <div class="field">
+              <label>PRODUTO (barcode)</label>
+              <input id="cpProd" class="mono" placeholder="Picar produto..." />
+              <div class="hint" id="cpProdInfo"></div>
+            </div>
+            <div class="right">
+              <button class="btn ok" id="cpGo">Procurar</button>
+              <button class="btn ghost" id="cpClear">Limpar</button>
+            </div>
+          </div>
+          <div id="cpMsg"></div>
+          <div class="divider"></div>
+          <div id="cpResults"></div>
+        </div>
+
+        <div class="card">
+          <h2>Por Posição</h2>
+          <div class="hint">Pica o barcode da posição para ver produtos/paletes arrumados.</div>
+          <div class="row" style="margin-top:10px">
+            <div class="field">
+              <label>POSIÇÃO (barcode)</label>
+              <input id="csPos" class="mono" placeholder="Picar posição..." />
+              <div class="hint" id="csPosInfo"></div>
+            </div>
+            <div class="right">
+              <button class="btn ok" id="csGo">Procurar</button>
+              <button class="btn ghost" id="csClear">Limpar</button>
+            </div>
+          </div>
+          <div id="csMsg"></div>
+          <div class="divider"></div>
+          <div id="csResults"></div>
+        </div>
+      </div>
+    `;
+    setupConsultarProduto();
+    setupConsultarPosicao();
+    setupTotaisProduto();
+
+    const btnS = $("btnExportStock");
+    const btnM = $("btnExportMov");
+    const hint = $("exportHint");
+    if(btnM) btnM.style.display = canAdmin(auth.currentUser) ? "" : "none";
+
+    if(btnS) btnS.onclick = async ()=>{
+      try{ hint.textContent = "A exportar stock..."; await exportStockCSV(); hint.textContent = "✅ Stock exportado."; }
+      catch(e){ hint.textContent = "❌ " + (e.message||e); }
+    };
+    if(btnM) btnM.onclick = async ()=>{
+      try{ hint.textContent = "A exportar movimentos..."; await exportMovementsCSV(); hint.textContent = "✅ Movimentos exportados."; }
+      catch(e){ hint.textContent = "❌ " + (e.message||e); }
+    };
+  }
+
+  function setupConsultarProduto(){
+    const inp = $("cpProd"), go = $("cpGo"), clear = $("cpClear");
+    const msg = $("cpMsg"), info = $("cpProdInfo"), results = $("cpResults");
+    let prod = null;
+
+    const reset=()=>{ prod=null; inp.value=""; info.textContent=""; msg.innerHTML=""; results.innerHTML=""; inp.focus(); };
+
+    async function run(){
+      try{
+        msg.innerHTML=""; results.innerHTML="";
+        prod = await getProductByBarcode(inp.value);
+        if(!prod) throw new Error("Produto não encontrado.");
+        info.textContent = "✅ " + (prod.name||"");
+
+        const qy = query(collection(db, COL_STOCK), where("productId","==", prod.id));
+        const snap = await getDocs(qy);
+        if(snap.empty){ results.innerHTML = msgBox("Sem stock em posições.", "warn"); return; }
+
+        const rows = snap.docs.map(d=>d.data()).filter(x=>(Number(x.qtyUnits||0)>0 || Number(x.qtyPallets||0)>0));
+
+        // carregar códigos das posições
+        const posSnaps = await Promise.all(rows.map(r=>getDoc(doc(db, COL_POSITIONS, r.positionId))));
+        const view = rows.map((r,i)=>{
+          const ps = posSnaps[i];
+          const posCode = ps.exists() ? (ps.data().code || r.positionId) : r.positionId;
+          return {
+            posCode,
+            palletBarcode: r.palletBarcode || "",
+            slotType: r.slotType || "PICKING",
+            qtyUnits: Number(r.qtyUnits||0),
+            qtyPallets: Number(r.qtyPallets||0)
+          };
+        }).sort((a,b)=>(a.posCode||"").localeCompare(b.posCode||"", "pt", {sensitivity:"base"}));
+
+        results.innerHTML = `
+          <div style="overflow:auto">
+            <table>
+              <thead><tr><th>Posição</th><th>Palete</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
+              <tbody>
+                ${view.map(v=>`
+                  <tr>
+                    <td><span class="mono">${esc(v.posCode)}</span></td>
+                    <td><span class="mono">${esc(v.palletBarcode || "—")}</span></td>
+                    <td>${esc(v.slotType)}</td>
+                    <td><b>${v.qtyUnits}</b></td><td><b>${v.qtyPallets}</b></td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }catch(err){ msg.innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+    }
+
+    inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); run(); }});
+    go.onclick = run;
+    clear.onclick = reset;
+    reset();
+  }
+
+  function setupConsultarPosicao(){
+    const inp = $("csPos"), go = $("csGo"), clear = $("csClear");
+    const msg = $("csMsg"), info = $("csPosInfo"), results = $("csResults");
+    let pos = null;
+
+    const reset=()=>{ pos=null; inp.value=""; info.textContent=""; msg.innerHTML=""; results.innerHTML=""; inp.focus(); };
+
+    async function run(){
+      try{
+        msg.innerHTML=""; results.innerHTML="";
+        pos = await getPositionByBarcode(inp.value);
+        if(!pos) throw new Error("Posição não encontrada.");
+        info.textContent = "✅ " + (pos.code||"");
+
+        const qy = query(collection(db, COL_STOCK), where("positionId","==", pos.id));
+        const snap = await getDocs(qy);
+        if(snap.empty){ results.innerHTML = msgBox("Sem stock nesta posição.", "warn"); return; }
+
+        const rows = snap.docs.map(d=>d.data()).filter(x=>(Number(x.qtyUnits||0)>0 || Number(x.qtyPallets||0)>0));
+
+        // carregar nomes dos produtos
+        const prodSnaps = await Promise.all(rows.map(r=>getDoc(doc(db, COL_PRODUCTS, r.productId))));
+        const view = rows.map((r,i)=>{
+          const ps = prodSnaps[i];
+          const prodName = ps.exists() ? (ps.data().name || r.productId) : r.productId;
+          return {
+            prodName,
+            palletBarcode: r.palletBarcode || "",
+            slotType: r.slotType || "PICKING",
+            qtyUnits: Number(r.qtyUnits||0),
+            qtyPallets: Number(r.qtyPallets||0)
+          };
+        }).sort((a,b)=>(a.prodName||"").localeCompare(b.prodName||"", "pt", {sensitivity:"base"}));
+
+        results.innerHTML = `
+          <div style="overflow:auto">
+            <table>
+              <thead><tr><th>Produto</th><th>Palete</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
+              <tbody>
+                ${view.map(v=>`
+                  <tr>
+                    <td>${esc(v.prodName)}</td>
+                    <td><span class="mono">${esc(v.palletBarcode || "—")}</span></td>
+                    <td>${esc(v.slotType)}</td>
+                    <td><b>${v.qtyUnits}</b></td><td><b>${v.qtyPallets}</b></td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }catch(err){ msg.innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+    }
+
+    inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); run(); }});
+    go.onclick = run;
+    clear.onclick = reset;
+    reset();
+  }
+
+  function setupTotaisProduto(){
+    const tbl = $("totTable");
+    const filt = $("totFilter");
+    const btn = $("btnExportTotals");
+    if(!tbl || !filt || !btn) return;
+
+    let cache = [];
+
+    async function load(){
+      tbl.innerHTML = `<tr><td colspan="4">A carregar...</td></tr>`;
+      cache = await computeTotalsByProduct();
+      render();
+    }
+    function render(){
+      const term = (filt.value||"").toLowerCase().trim();
+      const rows = cache.filter(r=>{
+        if(!term) return true;
+        const hay = `${r.name} ${r.barcode}`.toLowerCase();
+        return hay.includes(term);
+      });
+      tbl.innerHTML = rows.map(r=>`
+        <tr>
+          <td>${esc(r.name)}</td>
+          <td><span class="mono">${esc(r.barcode || "—")}</span></td>
+          <td><b>${Number(r.qtyUnits||0)}</b></td>
+          <td><b>${Number(r.qtyPallets||0)}</b></td>
+        </tr>
+      `).join("") || `<tr><td colspan="4">Sem resultados.</td></tr>`;
+    }
+
+    filt.oninput = render;
+    btn.onclick = async ()=>{ await exportTotalsCSV(); };
+
+    load();
+  }
+
+
+  
+  // ===== Export CSV (separador ;) =====
+  function downloadText(filename, text){
+    const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function sanitizeBarcodeExport(v){
+    const s = (v ?? "").toString().trim();
+    // remover prefixos comuns indesejados (ex.: `123, '123)
+    return s.replace(/^([`']+)\s*/, "");
+  }
+
+  function csvEscape(v){
+    const s = (v ?? "").toString();
+    if(/[;\n"]/g.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }
+
+  
+  async function exportProductsCSV(){
+    const snap = await getDocs(collection(db, COL_PRODUCTS));
+    const rows = snap.docs.map(d=>({id:d.id, ...d.data()}))
+      .sort((a,b)=>(a.name||"").localeCompare(b.name||"", "pt", {sensitivity:"base"}));
+
+    const header = ["produto","barcode"].join(";");
+    const lines = rows.map(r=>[
+      csvEscape(r.name || ""),
+      csvEscape(sanitizeBarcodeExport(r.barcode || ""))
+    ].join(";"));
+
+    downloadText(`produtos_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
+  }
+
+async function exportStockCSV(){
+    const snap = await getDocs(collection(db, COL_STOCK));
+    const rows = snap.docs.map(d=>({id:d.id, ...d.data()}));
+
+    const posIds = [...new Set(rows.map(r=>r.positionId).filter(Boolean))];
+    const prodIds = [...new Set(rows.map(r=>r.productId).filter(Boolean))];
+
+    const posSnaps = await Promise.all(posIds.map(id=>getDoc(doc(db, COL_POSITIONS, id))));
+    const prodSnaps = await Promise.all(prodIds.map(id=>getDoc(doc(db, COL_PRODUCTS, id))));
+
+    const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? (posSnaps[i].data().code || id) : id]));
+    const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? (prodSnaps[i].data().name || id) : id]));
+
+    const header = ["posicao","produto","palletBarcode","tipo","origem","qtyUnits","qtyPallets","updatedAt"].join(";");
+    const lines = rows.map(r=>{
+      const code = posMap.get(r.positionId) || r.positionId || "";
+      const name = prodMap.get(r.productId) || r.productId || "";
+      const upd = r.updatedAt?.toDate ? r.updatedAt.toDate().toISOString() : "";
+      return [
+        csvEscape(code),
+        csvEscape(name),
+        csvEscape(r.palletBarcode || ""),
+        csvEscape(r.slotType || ""),
+        csvEscape(r.origin || ""),
+        csvEscape(Number(r.qtyUnits||0)),
+        csvEscape(Number(r.qtyPallets||0)),
+        csvEscape(upd),
+      ].join(";");
+    });
+
+    downloadText(`stock_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
+  }
+
+  async function exportMovementsCSV(){
+    const u = auth.currentUser;
+    const snap = await getDocs(collection(db, COL_MOVEMENTS));
+    const rows = snap.docs.map(d=>({id:d.id, ...d.data()}));
+
+    const header = ["ts","type","userId","positionId","fromPositionId","toPositionId","productId","palletBarcode","slotType","qtyUnits","qtyPallets"].join(";");
+    const lines = rows
+      .sort((a,b)=>{
+        const ta = a.ts?.toDate ? a.ts.toDate().getTime() : 0;
+        const tb = b.ts?.toDate ? b.ts.toDate().getTime() : 0;
+        return tb - ta;
+      })
+      .map(r=>{
+        const ts = r.ts?.toDate ? r.ts.toDate().toISOString() : "";
+        return [
+          csvEscape(ts),
+          csvEscape(r.type || ""),
+          csvEscape(r.userId || ""),
+          csvEscape(r.positionId || ""),
+          csvEscape(r.fromPositionId || ""),
+          csvEscape(r.toPositionId || ""),
+          csvEscape(r.productId || ""),
+          csvEscape(r.palletBarcode || ""),
+          csvEscape(r.slotType || ""),
+          csvEscape(Number(r.qtyUnits||0)),
+          csvEscape(Number(r.qtyPallets||0)),
+        ].join(";");
+      });
+
+    downloadText(`movimentos_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
+  }
+
+  async function computeTotalsByProduct(){
+    const prodSnap = await getDocs(collection(db, COL_PRODUCTS));
+    const products = prodSnap.docs.map(d=>({id:d.id, ...d.data()}));
+    const prodMap = new Map(products.map(p=>[p.id, p]));
+
+    const stockSnap = await getDocs(collection(db, COL_STOCK));
+    const stock = stockSnap.docs.map(d=>d.data());
+
+    const agg = new Map();
+    for(const s of stock){
+      const pid = s.productId;
+      if(!pid) continue;
+      const u = Number(s.qtyUnits||0);
+      const p = Number(s.qtyPallets||0);
+      if(!agg.has(pid)) agg.set(pid, {u:0,p:0});
+      const a = agg.get(pid);
+      a.u += u; a.p += p;
+    }
+
+    const rows = [];
+    for(const [pid, a] of agg.entries()){
+      const pr = prodMap.get(pid) || {name:pid, barcode:""};
+      rows.push({ productId:pid, name:pr.name||pid, barcode:pr.barcode||"", qtyUnits:a.u, qtyPallets:a.p });
+    }
+    rows.sort((x,y)=>(x.name||"").localeCompare(y.name||"", "pt", {sensitivity:"base"}));
+    return rows;
+  }
+
+  async function exportTotalsCSV(){
+    const rows = await computeTotalsByProduct();
+    const header = ["produto","barcode","qtyUnitsTotal","qtyPalletsTotal"].join(";");
+    const lines = rows.map(r=>[
+      csvEscape(r.name||""),
+      csvEscape(sanitizeBarcodeExport(r.barcode||"")),
+      csvEscape(Number(r.qtyUnits||0)),
+      csvEscape(Number(r.qtyPallets||0))
+    ].join(";"));
+    downloadText(`totais_produto_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\\n"));
+  }
+
+
+
+  // ===== Movimentos: listar + anular/editar =====
+  function renderMovimentos(){
+    const u = auth.currentUser;
+    viewEl.innerHTML = `
+      <div class="card">
+        <h2 style="margin:0 0 8px">Movimentos</h2>
+        <div class="hint">Listagem e correções. Para manter histórico, o sistema faz <b>anulação</b> (reverte stock) e <b>edição</b> (ajusta stock pela diferença).</div>
+        <div class="row" style="margin-top:10px">
+          <div class="field">
+            <label>Mostrar</label>
+            <select id="mvLimit">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Filtro (texto)</label>
+            <input id="mvFilter" placeholder="posição / produto / palete / tipo / userId" />
+          </div>
+          <div class="right">
+            <button class="btn ghost" id="mvReload">Atualizar</button>
+            <button class="btn ghost" id="mvExport">Exportar Movimentos (CSV ;)</button>
+          </div>
+        </div>
+        <div id="mvMsg"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2 style="margin:0 0 8px">Total por Produto</h2>
+        <div class="hint">Soma de UND e Paletes em todas as posições/paletes.</div>
+        <div class="row" style="margin-top:10px">
+          <div class="field"><label>Filtro produto</label><input id="totFilter" placeholder="nome ou barcode" /></div>
+          <div class="right"><button class="btn ghost" id="btnExportTotals">Exportar Totais (CSV ;)</button></div>
+        </div>
+        <div style="overflow:auto;margin-top:10px">
+          <table>
+            <thead><tr><th>Produto</th><th>Barcode</th><th>UND Total</th><th>Paletes Total</th></tr></thead>
+            <tbody id="totTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+<div class="card" style="margin-top:12px;overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th><th>Tipo</th><th>Posição</th><th>Origem</th><th>Destino</th>
+              <th>Produto</th><th>Palete</th><th>Tipo Slot</th><th>UND</th><th>Pal</th><th>User</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="mvTable"></tbody>
+        </table>
+      </div>
+
+      <div id="mvModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);padding:14px;z-index:999">
+        <div class="card" style="max-width:720px;margin:0 auto">
+          <h2 style="margin:0 0 8px">Editar Movimento</h2>
+          <div class="hint">Só é suportado editar/anular: <b>ARRUMAR</b>, <b>RETIRAR</b>, <b>MUDAR</b>. “MUDAR_TUDO” fica bloqueado.</div>
+          <div class="divider"></div>
+          <div class="grid two">
+            <div class="card" style="padding:12px">
+              <div class="hint">Campos editáveis</div>
+              <div class="row" style="margin-top:10px">
+                <div class="field"><label>UND</label><input id="mvEditU" type="number" min="0" step="1" /></div>
+                <div class="field"><label>Paletes</label><input id="mvEditP" type="number" min="0" step="1" /></div>
+              </div>
+              <div class="row">
+                <div class="field"><label>Tipo Slot (ARRUMAR/RETIRAR)</label>
+                  <select id="mvEditSlot">
+                    <option value="">(manter)</option>
+                    <option value="PICKING">PICKING</option>
+                    <option value="COMPLETA">COMPLETA</option>
+                  </select>
+                </div>
+              </div>
+              <div class="hint">Para MUDAR, a edição ajusta quantidades do movimento (reverte diferença entre origem/destino).</div>
+            </div>
+
+            <div class="card" style="padding:12px">
+              <div class="hint">Motivo (obrigatório)</div>
+              <div class="row" style="margin-top:10px">
+                <div class="field"><label>Motivo</label><input id="mvReason" placeholder="Ex.: engano no scanner" /></div>
+              </div>
+              <div id="mvEditMsg"></div>
+              <div class="right" style="margin-top:10px">
+                <button class="btn danger" id="mvCancelBtn">Anular (reverter stock)</button>
+                <button class="btn ok" id="mvSaveBtn">Guardar edição</button>
+                <button class="btn ghost" id="mvCloseBtn">Fechar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    setupMovimentos();
+  }
+
+  async function setupMovimentos(){
+    const mvTable = $("mvTable");
+    const mvMsg = $("mvMsg");
+    const mvReload = $("mvReload");
+    const mvLimit = $("mvLimit");
+    const mvFilter = $("mvFilter");
+    const mvExport = $("mvExport");
+
+    const modal = $("mvModal");
+    const editU = $("mvEditU");
+    const editP = $("mvEditP");
+    const editSlot = $("mvEditSlot");
+    const reason = $("mvReason");
+    const editMsg = $("mvEditMsg");
+    const btnSave = $("mvSaveBtn");
+    const btnCancel = $("mvCancelBtn");
+    const btnClose = $("mvCloseBtn");
+
+    let current = null;
+
+    function openModal(mv){
+      current = mv;
+      editMsg.innerHTML = "";
+      reason.value = "";
+      editU.value = Number(mv.qtyUnits||0);
+      editP.value = Number(mv.qtyPallets||0);
+      editSlot.value = ""; // manter por defeito
+      // bloquear MUDAR_TUDO e outros
+      const allowed = ["ARRUMAR","RETIRAR","MUDAR"].includes((mv.type||"").toUpperCase()) && !mv.cancelled;
+      btnSave.disabled = !allowed;
+      btnCancel.disabled = !allowed;
+      modal.style.display = "block";
+    }
+    function closeModal(){
+      modal.style.display = "none";
+      current = null;
+    }
+
+    btnClose.onclick = closeModal;
+    modal.addEventListener("click", (e)=>{ if(e.target === modal) closeModal(); });
+
+    async function load(){
+      mvMsg.innerHTML = "";
+      mvTable.innerHTML = `<tr><td colspan="12">A carregar...</td></tr>`;
+      const n = Number(mvLimit.value||100);
+
+      // Movimentos precisam de leitura para operadores também (ver rules abaixo)
+      const qy = query(collection(db, COL_MOVEMENTS), orderBy("ts","desc"), limit(n));
+      const snap = await getDocs(qy);
+
+      const rows = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      const term = (mvFilter.value||"").toLowerCase().trim();
+
+      // Map ids -> nomes/códigos (best effort)
+      const posIds = [...new Set(rows.flatMap(r=>[r.positionId,r.fromPositionId,r.toPositionId]).filter(Boolean))];
+      const prodIds = [...new Set(rows.map(r=>r.productId).filter(Boolean))];
+
+      const posSnaps = await Promise.all(posIds.map(id=>getDoc(doc(db, COL_POSITIONS, id))));
+      const prodSnaps = await Promise.all(prodIds.map(id=>getDoc(doc(db, COL_PRODUCTS, id))));
+
+      const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? (posSnaps[i].data().code || id) : id]));
+      const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? (prodSnaps[i].data().name || id) : id]));
+
+      const view = rows.map(r=>{
+        const ts = r.ts?.toDate ? r.ts.toDate().toLocaleString() : "";
+        const type = (r.type||"");
+        const pos = posMap.get(r.positionId) || "";
+        const from = posMap.get(r.fromPositionId) || "";
+        const to = posMap.get(r.toPositionId) || "";
+        const prod = prodMap.get(r.productId) || "";
+        const pal = r.palletBarcode || "";
+        const slot = r.slotType || "";
+        const u = Number(r.qtyUnits||0);
+        const p = Number(r.qtyPallets||0);
+        const uid = r.userId || "";
+        const cancelled = !!r.cancelled;
+
+        const hay = `${ts} ${type} ${pos} ${from} ${to} ${prod} ${pal} ${slot} ${u} ${p} ${uid}`.toLowerCase();
+        if(term && !hay.includes(term)) return null;
+
+        return { ...r, _ts: ts, _type:type, _pos:pos, _from:from, _to:to, _prod:prod, _pal:pal, _slot:slot, _u:u, _p:p, _uid:uid, _cancelled:cancelled };
+      }).filter(Boolean);
+
+      mvTable.innerHTML = view.map(r=>`
+        <tr style="${r._cancelled ? "opacity:.55" : ""}">
+          <td>${esc(r._ts)}${r._cancelled ? "<div class='hint'>ANULADO</div>" : ""}</td>
+          <td>${esc(r._type)}</td>
+          <td><span class="mono">${esc(r._pos)}</span></td>
+          <td><span class="mono">${esc(r._from)}</span></td>
+          <td><span class="mono">${esc(r._to)}</span></td>
+          <td>${esc(r._prod)}</td>
+          <td><span class="mono">${esc(r._pal || "—")}</span></td>
+          <td>${esc(r._slot || "—")}</td>
+          <td><b>${r._u}</b></td>
+          <td><b>${r._p}</b></td>
+          <td><span class="mono">${esc(r._uid)}</span></td>
+          <td style="white-space:nowrap">
+            <button class="btn ghost" data-act="edit" data-id="${r.id}">Editar/Anular</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="12">Sem resultados.</td></tr>`;
+
+      mvTable.querySelectorAll("button[data-act='edit']").forEach(b=>{
+        b.onclick = ()=>{
+          const id = b.dataset.id;
+          const mv = view.find(x=>x.id===id);
+          if(mv) openModal(mv);
+        };
+      });
+    }
+
+    mvReload.onclick = load;
+    mvLimit.onchange = load;
+    mvFilter.oninput = load;
+
+    mvExport.onclick = async ()=>{
+      try{
+        mvMsg.innerHTML = msgBox("A exportar movimentos...", "");
+        await exportMovementsCSV(); // já existe helper
+        mvMsg.innerHTML = msgBox("✅ Movimentos exportados.", "ok");
+      }catch(e){
+        mvMsg.innerHTML = msgBox("❌ " + esc(e.message||e), "err");
+      }
+    };
+
+    btnCancel.onclick = async ()=>{
+      try{
+        if(!current) return;
+        const mv = current;
+        if(mv.cancelled) throw new Error("Já está anulado.");
+        const why = (reason.value||"").trim();
+        if(!why) throw new Error("Motivo obrigatório.");
+
+        await cancelMovement(mv.id, why);
+        editMsg.innerHTML = msgBox("✅ Movimento anulado (stock revertido).", "ok");
+        await load();
+      }catch(e){
+        editMsg.innerHTML = msgBox("❌ " + esc(e.message||e), "err");
+      }
+    };
+
+    btnSave.onclick = async ()=>{
+      try{
+        if(!current) return;
+        const mv = current;
+        if(mv.cancelled) throw new Error("Já está anulado.");
+        const why = (reason.value||"").trim();
+        if(!why) throw new Error("Motivo obrigatório.");
+
+        const newU = Math.floor(Number(editU.value||0));
+        const newP = Math.floor(Number(editP.value||0));
+        if(newU<0 || newP<0) throw new Error("Quantidades inválidas.");
+        if(newU===0 && newP===0) throw new Error("Indica UND e/ou Paletes.");
+
+        const newSlot = editSlot.value || null;
+
+        await editMovement(mv.id, { qtyUnits:newU, qtyPallets:newP, slotType:newSlot }, why);
+        editMsg.innerHTML = msgBox("✅ Movimento editado (stock ajustado).", "ok");
+        await load();
+      }catch(e){
+        editMsg.innerHTML = msgBox("❌ " + esc(e.message||e), "err");
+      }
+    };
+
+    await load();
+  }
+
+  async function cancelMovement(mvId, reason){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Sem login.");
+    if(!canOperate(user)) throw new Error("Sem permissões.");
+
+    const mvRef = doc(db, COL_MOVEMENTS, mvId);
+
+    await runTransaction(db, async (tx)=>{
+      const mvSnap = await tx.get(mvRef);
+      if(!mvSnap.exists()) throw new Error("Movimento não existe.");
+      const mv = mvSnap.data();
+      if(mv.cancelled) throw new Error("Já anulado.");
+      const type = (mv.type||"").toUpperCase();
+      if(!["ARRUMAR","RETIRAR","MUDAR"].includes(type)) throw new Error("Não suportado para anular.");
+
+      // marcar movimento como anulado (preserva histórico)
+      tx.set(mvRef, { cancelled:true, cancelledAt:serverTimestamp(), cancelledBy:user.uid, cancelReason:reason }, {merge:true});
+
+      // reverter stock
+      if(type==="ARRUMAR"){
+        const pos = mv.positionId, prod = mv.productId, pal = mv.palletBarcode||"", slot = mv.slotType||"PICKING";
+        const u = Number(mv.qtyUnits||0), p = Number(mv.qtyPallets||0);
+        const stockRef = doc(db, COL_STOCK, stockKey(pos, prod, palletIdFromBarcode(pal)));
+        const snap = await tx.get(stockRef);
+        const curU = snap.exists()? Number(snap.data().qtyUnits||0):0;
+        const curP = snap.exists()? Number(snap.data().qtyPallets||0):0;
+        const nextU = curU - u;
+        const nextP = curP - p;
+        if(nextU < 0 || nextP < 0) throw new Error("Não dá para anular: stock insuficiente.");
+        if(nextU===0 && nextP===0) tx.delete(stockRef);
+        else tx.set(stockRef, { qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+      }else if(type==="RETIRAR"){
+        const pos = mv.positionId, prod = mv.productId, pal = mv.palletBarcode||"", slot = mv.slotType||"PICKING";
+        const u = Number(mv.qtyUnits||0), p = Number(mv.qtyPallets||0);
+        const stockRef = doc(db, COL_STOCK, stockKey(pos, prod, palletIdFromBarcode(pal)));
+        const snap = await tx.get(stockRef);
+        const curU = snap.exists()? Number(snap.data().qtyUnits||0):0;
+        const curP = snap.exists()? Number(snap.data().qtyPallets||0):0;
+        const nextU = curU + u;
+        const nextP = curP + p;
+        tx.set(stockRef, { positionId:pos, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:slot, qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+      }else if(type==="MUDAR"){
+        const from = mv.fromPositionId, to = mv.toPositionId, prod = mv.productId, pal = mv.palletBarcode||"";
+        const u = Number(mv.qtyUnits||0), p = Number(mv.qtyPallets||0);
+        const palId = palletIdFromBarcode(pal);
+        const fromRef = doc(db, COL_STOCK, stockKey(from, prod, palId));
+        const toRef = doc(db, COL_STOCK, stockKey(to, prod, palId));
+
+        const toSnap = await tx.get(toRef);
+        const toU = toSnap.exists()? Number(toSnap.data().qtyUnits||0):0;
+        const toP = toSnap.exists()? Number(toSnap.data().qtyPallets||0):0;
+        const toType = toSnap.exists()? (toSnap.data().slotType||"PICKING") : "PICKING";
+        if(toU < u || toP < p) throw new Error("Não dá para anular: destino sem stock suficiente.");
+        const nextToU = toU - u;
+        const nextToP = toP - p;
+        if(nextToU===0 && nextToP===0) tx.delete(toRef);
+        else tx.set(toRef, { qtyUnits:nextToU, qtyPallets:nextToP, updatedAt:serverTimestamp() }, {merge:true});
+
+        const fromSnap = await tx.get(fromRef);
+        const fromU = fromSnap.exists()? Number(fromSnap.data().qtyUnits||0):0;
+        const fromP = fromSnap.exists()? Number(fromSnap.data().qtyPallets||0):0;
+        const fromType = fromSnap.exists()? (fromSnap.data().slotType||toType) : toType;
+
+        tx.set(fromRef, { positionId:from, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:fromType, qtyUnits:fromU + u, qtyPallets:fromP + p, updatedAt:serverTimestamp() }, {merge:true});
+      }
+
+      // registar ação (opcional) como novo movimento do tipo "ANULACAO"
+      const mv2Ref = doc(collection(db, COL_MOVEMENTS));
+      tx.set(mv2Ref, { type:"ANULACAO", ts:serverTimestamp(), userId:user.uid, refMovementId:mvId, reason }, {merge:true});
+    });
+  }
+
+  async function editMovement(mvId, patch, reason){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Sem login.");
+    if(!canOperate(user)) throw new Error("Sem permissões.");
+
+    const mvRef = doc(db, COL_MOVEMENTS, mvId);
+
+    await runTransaction(db, async (tx)=>{
+      const mvSnap = await tx.get(mvRef);
+      if(!mvSnap.exists()) throw new Error("Movimento não existe.");
+      const mv = mvSnap.data();
+      if(mv.cancelled) throw new Error("Já anulado.");
+      const type = (mv.type||"").toUpperCase();
+      if(!["ARRUMAR","RETIRAR","MUDAR"].includes(type)) throw new Error("Não suportado para editar.");
+
+      const oldU = Number(mv.qtyUnits||0), oldP = Number(mv.qtyPallets||0);
+      const newU = Number(patch.qtyUnits||0), newP = Number(patch.qtyPallets||0);
+      const dU = newU - oldU;
+      const dP = newP - oldP;
+
+      // atualizar movimento (guardar snapshot anterior)
+      tx.set(mvRef, {
+        edited:true,
+        editedAt:serverTimestamp(),
+        editedBy:user.uid,
+        editReason:reason,
+        prev: { qtyUnits:oldU, qtyPallets:oldP, slotType: mv.slotType || "" },
+        qtyUnits:newU,
+        qtyPallets:newP,
+        ...(patch.slotType ? { slotType: patch.slotType } : {})
+      }, {merge:true});
+
+      // ajustar stock pela diferença
+      if(type==="ARRUMAR"){
+        const pos = mv.positionId, prod = mv.productId, pal = mv.palletBarcode||"";
+        const slot = patch.slotType ? patch.slotType : (mv.slotType||"PICKING");
+        const stockRef = doc(db, COL_STOCK, stockKey(pos, prod, palletIdFromBarcode(pal)));
+        const snap = await tx.get(stockRef);
+        const curU = snap.exists()? Number(snap.data().qtyUnits||0):0;
+        const curP = snap.exists()? Number(snap.data().qtyPallets||0):0;
+        const nextU = curU + dU;
+        const nextP = curP + dP;
+        if(nextU < 0 || nextP < 0) throw new Error("Edição inválida: stock ficaria negativo.");
+        if(nextU===0 && nextP===0) tx.delete(stockRef);
+        else tx.set(stockRef, { positionId:pos, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:slot, qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+      }else if(type==="RETIRAR"){
+        // retirar: movimento representa saída; stock foi diminuído por old; ajustar por -d (se d é +, retira mais)
+        const pos = mv.positionId, prod = mv.productId, pal = mv.palletBarcode||"";
+        const slot = patch.slotType ? patch.slotType : (mv.slotType||"PICKING");
+        const stockRef = doc(db, COL_STOCK, stockKey(pos, prod, palletIdFromBarcode(pal)));
+        const snap = await tx.get(stockRef);
+        const curU = snap.exists()? Number(snap.data().qtyUnits||0):0;
+        const curP = snap.exists()? Number(snap.data().qtyPallets||0):0;
+        const nextU = curU - dU;
+        const nextP = curP - dP;
+        if(nextU < 0 || nextP < 0) throw new Error("Edição inválida: stock insuficiente.");
+        if(nextU===0 && nextP===0) tx.delete(stockRef);
+        else tx.set(stockRef, { qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp(), slotType:slot }, {merge:true});
+      }else if(type==="MUDAR"){
+        const from = mv.fromPositionId, to = mv.toPositionId, prod = mv.productId, pal = mv.palletBarcode||"";
+        const palId = palletIdFromBarcode(pal);
+
+        const fromRef = doc(db, COL_STOCK, stockKey(from, prod, palId));
+        const toRef = doc(db, COL_STOCK, stockKey(to, prod, palId));
+
+        // mudança: aplicar diferença em ambos (se new > old, tirar mais de origem e pôr mais em destino)
+        const fromSnap = await tx.get(fromRef);
+        const fromU = fromSnap.exists()? Number(fromSnap.data().qtyUnits||0):0;
+        const fromP = fromSnap.exists()? Number(fromSnap.data().qtyPallets||0):0;
+        /* handled by nextFrom<0 check */
+        const nextFromU = fromU - dU;
+        const nextFromP = fromP - dP;
+        if(nextFromU < 0 || nextFromP < 0) throw new Error("Edição inválida: origem sem stock.");
+        if(nextFromU===0 && nextFromP===0) tx.delete(fromRef);
+        else tx.set(fromRef, { qtyUnits:nextFromU, qtyPallets:nextFromP, updatedAt:serverTimestamp() }, {merge:true});
+
+        const toSnap = await tx.get(toRef);
+        const toU = toSnap.exists()? Number(toSnap.data().qtyUnits||0):0;
+        const toP = toSnap.exists()? Number(toSnap.data().qtyPallets||0):0;
+        const nextToU = toU + dU;
+        const nextToP = toP + dP;
+        if(nextToU < 0 || nextToP < 0) throw new Error("Edição inválida: destino ficaria negativo.");
+        if(nextToU===0 && nextToP===0) tx.delete(toRef);
+        else tx.set(toRef, { positionId:to, productId:prod, palletBarcode:normalizeBarcode(pal), qtyUnits:nextToU, qtyPallets:nextToP, updatedAt:serverTimestamp() }, {merge:true});
+      }
+
+      // registar ação
+      const mv2Ref = doc(collection(db, COL_MOVEMENTS));
+      tx.set(mv2Ref, { type:"EDICAO", ts:serverTimestamp(), userId:user.uid, refMovementId:mvId, reason, qtyUnits:newU, qtyPallets:newP }, {merge:true});
+    });
+  }
+
+
+  // ===== Paletes: Gerador de códigos de barras =====
+  function generatePalletCode(prefix){
+    const p = (prefix||"PLT").trim().toUpperCase().replace(/[^A-Z0-9_-]/g,"") || "PLT";
+    const d = new Date();
+    const y = d.getFullYear().toString();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    const hh = String(d.getHours()).padStart(2,"0");
+    const mm = String(d.getMinutes()).padStart(2,"0");
+    const ss = String(d.getSeconds()).padStart(2,"0");
+    const rand = String(Math.floor(Math.random()*100000)).padStart(5,"0");
+    return `${p}-${y}${m}${day}-${hh}${mm}${ss}-${rand}`;
+  }
+
+  function renderBarcode(svgEl, code){
+    if(!svgEl) return;
+    if(typeof JsBarcode === "undefined"){
+      svgEl.outerHTML = `<div class="msg err">JsBarcode não carregou. Confirma internet/CDN.</div>`;
+      return;
+    }
+    try{
+      JsBarcode(svgEl, code, {
+        format: "CODE128",
+        lineColor: "#101624",
+        width: 2,
+        height: 70,
+        displayValue: true,
+        fontSize: 14,
+        margin: 8
+      });
+    }catch(e){
+      svgEl.outerHTML = `<div class="msg err">Erro a gerar barcode: ${esc(e.message||e)}</div>`;
+    }
+  }
+
+  function printPalletLabel({code, title, subtitle}){
+    const w = window.open("", "_blank");
+    const safeTitle = esc(title||"PALETE");
+    const safeSubtitle = esc(subtitle||"");
+    const safeCode = esc(code||"");
+    w.document.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Etiqueta Palete</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:18px}
+  .box{border:1px solid #111;padding:14px;border-radius:14px;max-width:520px}
+  h1{font-size:18px;margin:0 0 6px}
+  .sub{color:#333;margin:0 0 10px}
+  .code{font-family:ui-monospace,Menlo,Consolas,monospace;margin-top:8px}
+  @media print { button{display:none} body{margin:0} .box{border:none} }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+</head>
+<body>
+  <button onclick="window.print()">Imprimir</button>
+  <div class="box">
+    <h1>${safeTitle}</h1>
+    <div class="sub">${safeSubtitle}</div>
+    <svg id="b"></svg>
+    <div class="code">${safeCode}</div>
+  </div>
+<script>
+  JsBarcode("#b", "${safeCode}", {format:"CODE128", lineColor:"#111", width:2, height:80, displayValue:true, fontSize:14, margin:10});
+<\/script>
+</body>
+</html>`);
+    w.document.close();
+  }
+
+  function renderPaletes(){
+    const u = auth.currentUser;
+    viewEl.innerHTML = `
+      <div class="card">
+        <h2 style="margin:0 0 8px">Gerador de códigos de barras (Paletes)</h2>
+        <div class="hint">Gera um código único (CODE128) para colar/Imprimir e depois usar na operação (campo <b>Palete</b>).</div>
+
+        <div class="grid two" style="margin-top:10px">
+          <div class="card soft">
+            <div class="row">
+              <div class="field">
+                <label>Prefixo</label>
+                <input id="pltPrefix" value="PLT" />
+              </div>
+              <div class="field">
+                <label>Quantidade a gerar</label>
+                <input id="pltQty" type="number" min="1" step="1" value="1" />
+              </div>
+              <div class="right">
+                <button class="btn ok" id="pltGen">Gerar</button>
+              </div>
+            </div>
+            <div class="hint" style="margin-top:6px">Formato: <code>PREFIXO-AAAAMMDD-HHMMSS-XXXXX</code></div>
+          </div>
+
+          <div class="card soft">
+            <div class="row">
+              <div class="field">
+                <label>Título etiqueta</label>
+                <input id="pltTitle" value="PALETE" />
+              </div>
+              <div class="field">
+                <label>Subtítulo (opcional)</label>
+                <input id="pltSub" placeholder="Ex.: NEW / RETURNS" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="pltMsg"></div>
+        <div class="divider"></div>
+        <h2 style="margin:0 0 8px">Reimprimir etiqueta de PALETE</h2>
+        <div class="hint">Pica/insere o código de palete para voltar a imprimir. Se existir no stock, mostra também a localização e o produto.</div>
+        <div class="row" style="margin-top:10px">
+          <div class="field"><label>Código de Palete</label><input id="pltReCode" placeholder="Pica o código..." /></div>
+          <div class="right">
+            <button class="btn ghost" id="pltReFind">Procurar</button>
+            <button class="btn ok" id="pltRePrint" disabled>Imprimir</button>
+          </div>
+        </div>
+        <div id="pltReInfo" style="margin-top:10px"></div>
+        <div style="margin-top:10px;overflow:auto"><svg id="pltReSvg"></svg></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2 style="margin:0 0 8px">Códigos gerados</h2>
+        <div class="hint">Toca/clica num código para copiar. Usa “Imprimir” para etiqueta.</div>
+        <div id="pltList" style="margin-top:10px;display:grid;gap:12px"></div>
+      </div>
+    `;
+
+    setupPaletes();
+  }
+
+  function setupPaletes(){
+    const prefix = $("pltPrefix");
+    const qty = $("pltQty");
+    const title = $("pltTitle");
+    const sub = $("pltSub");
+    const btn = $("pltGen");
+    const msg = $("pltMsg");
+    const list = $("pltList");
+
+    
+    // Reimprimir
+    const reCode = $("pltReCode");
+    const reFind = $("pltReFind");
+    const rePrint = $("pltRePrint");
+    const reInfo = $("pltReInfo");
+    const reSvg = $("pltReSvg");
+    let reResolved = null;
+let codes = [];
+
+    function render(){
+      list.innerHTML = codes.map((c, i)=>`
+        <div class="card soft">
+          <div class="row">
+            <div class="pill mono" style="cursor:pointer" data-copy="${esc(c)}">${esc(c)}</div>
+            <div class="spacer"></div>
+            <button class="btn ghost" data-print="${i}">Imprimir</button>
+          </div>
+          <div style="margin-top:10px;overflow:auto">
+            <svg id="pltSvg_${i}"></svg>
+          </div>
+        </div>
+      `).join("") || `<div class="hint">Ainda não geraste códigos.</div>`;
+
+      codes.forEach((c,i)=>{
+        const svg = document.getElementById(`pltSvg_${i}`);
+        renderBarcode(svg, c);
+      });
+
+      list.querySelectorAll("[data-copy]").forEach(el=>{
+        el.onclick = async ()=>{
+          const code = el.getAttribute("data-copy");
+          try{
+            await navigator.clipboard.writeText(code);
+            msg.innerHTML = msgBox("✅ Copiado: " + esc(code), "ok");
+          }catch(e){
+            msg.innerHTML = msgBox("Copiar falhou (telemóvel às vezes bloqueia). Código: " + esc(code), "warn");
+          }
+        };
+      });
+
+      list.querySelectorAll("[data-print]").forEach(b=>{
+        b.onclick = ()=>{
+          const i = Number(b.getAttribute("data-print"));
+          const code = codes[i];
+          printPalletLabel({code, title: title.value || "PALETE", subtitle: sub.value || ""});
+        };
+      });
+    }
+
+    btn.onclick = ()=>{
+      msg.innerHTML = "";
+      const n = Math.max(1, Math.min(200, Math.floor(Number(qty.value||1))));
+      const pref = prefix.value || "PLT";
+      codes = Array.from({length:n}, ()=>generatePalletCode(pref));
+      render();
+    };
+
+    render();
+  
+
+    async function doResolve(){
+      if(!reCode || !reFind || !rePrint || !reInfo || !reSvg) return;
+      const code = normalizeBarcode(reCode.value);
+      if(!code){
+        reInfo.innerHTML = msgBox("Pica o código de palete.", "warn");
+        rePrint.disabled = true;
+        reResolved = null;
+        return;
+      }
+      renderBarcode(reSvg, code);
+
+      try{
+        const res = await resolvePalletGlobal(code);
+        if(res.ok){
+          reResolved = res;
+          const s = res.stock || {};
+          reInfo.innerHTML = msgBox(`Encontrado no stock • <b>${esc(res.position.code)}</b> • <b>${esc(res.product.name)}</b> • UND ${Number(s.qtyUnits||0)} • Pal ${Number(s.qtyPallets||0)}`, "ok");
+          rePrint.disabled = false;
+        }else if(res.reason==="multiplo"){
+          reResolved = null;
+          rePrint.disabled = false;
+          reInfo.innerHTML = msgBox("Palete existe em várias linhas/duplicada. Podes imprimir na mesma.", "warn");
+        }else{
+          reResolved = null;
+          rePrint.disabled = false;
+          reInfo.innerHTML = msgBox("Palete não encontrada no stock (podes imprimir na mesma).", "warn");
+        }
+      }catch(e){
+        reResolved = null;
+        rePrint.disabled = false;
+        reInfo.innerHTML = msgBox("Erro a procurar palete (podes imprimir na mesma).", "warn");
+      }
+    }
+
+    if(reFind) reFind.onclick = doResolve;
+    if(reCode) reCode.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); doResolve(); }});
+    if(rePrint) rePrint.onclick = ()=>{
+      const code = normalizeBarcode(reCode.value);
+      if(!code){ reInfo.innerHTML = msgBox("Pica o código de palete.", "warn"); return; }
+      let subtitle = "";
+      if(reResolved && reResolved.position && reResolved.product){
+        subtitle = `${reResolved.position.code} • ${reResolved.product.name}`;
+      }
+      printPalletLabel({code, title: title.value || "PALETE", subtitle: subtitle || (sub.value || "")});
+    };
+}
+
+// ===== Auth UI =====
+  $("btnLogin").onclick = async ()=>{
+    const box = $("authMsg");
+    if(box) box.innerHTML = "";
+    try{
+      const email = $("loginEmail").value.trim();
+      const pass  = $("loginPass").value;
+      if(!email || !pass) throw new Error("Preenche email e password.");
+      await signInWithEmailAndPassword(auth, email, pass);
+      if(box) box.innerHTML = msgBox("✅ Login efetuado.", "ok");
+    }catch(err){
+      const code = err?.code ? `<div class="hint">Código: <code>${esc(err.code)}</code></div>` : "";
+      const msg = err?.message || String(err);
+      let tips = "";
+      const c = (err?.code || "").toString();
+      if(c.includes("auth/unauthorized-domain")){
+        tips = `<div class="hint">Domínio não autorizado. Publica em Firebase Hosting ou adiciona o domínio em Authentication → Settings → Authorized domains.</div>`;
+      }
+      if(box) box.innerHTML = msgBox(`❌ Erro de login: ${esc(msg)}${code}${tips}`, "err");
+      console.error(err);
+    }
+  };
+  $("btnLogout").onclick = async ()=>{ try{ await signOut(auth); }catch(e){} };
+  $("btnReload").onclick = ()=>location.reload();
+
+  // placeholder inicial
+  viewEl.innerHTML = `<div class="card"><div class="hint">A verificar sessão...</div></div>`;
+
+  onAuthStateChanged(auth, (user)=>{
+    state.user = user || null;
+    if(!user) state.tab = "operacao";
+    if(user){
+      const role = isAdminUser(user) ? "ADMIN" : (isWhUser(user) ? "OPERADOR" : "SEM_ACESSO");
+      authPill.textContent = `Auth: OK (${role})`;
+    }else{
+      authPill.textContent = "Auth: OFF";
+    }
+    render();
+  });
+
+  /***********************
+   REGRAS FIRESTORE (colar no Firebase Console → Firestore Rules)
+
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+
+       function signedIn() { return request.auth != null; }
+       function email() { return signedIn() ? request.auth.token.email : ""; }
+       function isAdmin() { return signedIn() && email().matches('.*@admin\\.com$'); }
+       function isWh()    { return signedIn() && email().matches('.*@wh\\.com$'); }
+       function canOperate() { return isAdmin() || isWh(); }
+
+       match /products/{id} {
+         allow read: if canOperate();
+         allow write: if isAdmin();
+       }
+       match /positions/{id} {
+         allow read: if canOperate();
+         allow write: if isAdmin();
+       }
+       match /stockItems/{id} {
+         allow read, write: if canOperate();
+       }
+       match /movements/{id} {
+         allow create: if canOperate();
+         allow read: if canOperate();
+         // permitir marcação de anulado/edição (a app faz o ajuste de stock)
+         allow update: if canOperate();
+         allow delete: if false;
+       }
+     }
+   }
+
+   ***********************/
+</script>
+</body>
+</html>
