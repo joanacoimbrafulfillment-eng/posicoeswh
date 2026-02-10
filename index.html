@@ -733,11 +733,12 @@ $("pSearch").oninput = renderProductsTable;
       <div class="opMobile">
       <div class="card">
         <h2 style="margin:0 0 8px">Operação</h2>
-        <div class="hint">Arrumar / Mudar / Retirar. (Consulta está no separador “Consultar”)</div>
+        <div class="hint">Arrumar / Mudar / Retirar / Reabastecer. (Consulta está no separador “Consultar”)</div>
         <div class="row" style="margin-top:10px">
           <button class="tabbtn ${state.op==="arrumar"?"active":""}" data-op="arrumar">Arrumar</button>
           <button class="tabbtn ${state.op==="mudar"?"active":""}" data-op="mudar">Mudar</button>
           <button class="tabbtn ${state.op==="retirar"?"active":""}" data-op="retirar">Retirar</button>
+          <button class="tabbtn ${state.op==="reabastecer"?"active":""}" data-op="reabastecer">Reabastecer</button>
         </div>
         <div id="opMsg">${msgBox(`✅ Logado: <span class="mono">${esc(auth.currentUser.uid)}</span>`, "ok")}</div>
       </div>
@@ -745,7 +746,7 @@ $("pSearch").oninput = renderProductsTable;
     `;
 
     viewEl.querySelectorAll("button[data-op]").forEach(b=>{
-      b.onclick = ()=>{ state.op = b.dataset.op; renderOperacaoBody(); };
+      b.onclick = ()=>{ state.op = b.dataset.op; renderOperacao(); };
     });
 
     renderOperacaoBody();
@@ -906,6 +907,58 @@ $("pSearch").oninput = renderProductsTable;
       `;
       setupMudar();
     }
+
+    if(state.op==="reabastecer"){
+      opView.innerHTML = `
+        <div class="card">
+          <h2>Reabastecer Picking (parcial)</h2>
+          <div class="hint">Mover parte do stock (normalmente <b>COMPLETA</b>) para uma posição de <b>PICKING</b>. Se tiver código de palete: pica a palete e o sistema encontra origem+produto. Se não tiver: ORIGEM → PRODUTO.</div>
+
+          <div class="row" style="margin-top:10px">
+            <div class="field">
+              <label>PALETE (se tiver)</label>
+              <input id="rpPal" class="mono" placeholder="Pica PALETE (se existir)..." />
+              <div class="hint" id="rpPalInfo"></div>
+            </div>
+            <div class="field">
+              <label>ORIGEM (sem palete)</label>
+              <input id="rpFrom" class="mono" placeholder="Pica ORIGEM (sem palete)..." />
+            </div>
+            <div class="field">
+              <label>PRODUTO (sem palete)</label>
+              <input id="rpProd" class="mono" placeholder="Pica PRODUTO..." disabled />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px">
+            <div class="field">
+              <label>DESTINO (PICKING)</label>
+              <input id="rpTo" class="mono" placeholder="Pica DESTINO picking..." disabled />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px">
+            <div class="field">
+              <label>QTD (UND)</label>
+              <input id="rpQtyU" type="number" min="0" step="1" placeholder="0" disabled />
+            </div>
+            <div class="field">
+              <label>QTD (PALETES)</label>
+              <input id="rpQtyP" type="number" min="0" step="1" placeholder="0" disabled />
+            </div>
+          </div>
+
+          <div class="right" style="margin-top:10px">
+            <button class="btn ghost" id="rpClear">Limpar</button>
+            <button class="btn ok" id="rpOk" disabled>Confirmar</button>
+          </div>
+
+          <div id="rpMsg"></div>
+        </div>
+      `;
+      setupReabastecer();
+    }
+
   }
 
   function setupArrumar(){
@@ -1183,6 +1236,176 @@ function setupRetirar(){
       }
     };
   }
+
+  function setupReabastecer(){
+    const rpPal=$("rpPal"), rpFrom=$("rpFrom"), rpProd=$("rpProd"), rpTo=$("rpTo"), rpQtyU=$("rpQtyU"), rpQtyP=$("rpQtyP"), rpOk=$("rpOk"), rpClear=$("rpClear");
+    const rpMsg=$("rpMsg"), rpPalInfo=$("rpPalInfo");
+
+    let fromPos=null, toPos=null, prod=null, pal=null, fromSlotType="COMPLETA";
+
+    function reset(){
+      fromPos=toPos=prod=pal=null;
+      fromSlotType="COMPLETA";
+      rpPal.value=""; rpFrom.value=""; rpProd.value=""; rpTo.value=""; rpQtyU.value=""; rpQtyP.value="";
+      rpProd.disabled=true;
+      rpTo.disabled=true;
+      rpQtyU.disabled=true;
+      rpQtyP.disabled=true;
+      rpOk.disabled=true;
+      if(rpPalInfo) rpPalInfo.textContent = "";
+      rpMsg.innerHTML = msgBox("Pica PALETE (se existir) ou então ORIGEM → PRODUTO.", "warn");
+      rpPal.focus();
+    }
+    reset();
+    rpClear.onclick = reset;
+
+    function enable(){
+      const u=Math.floor(Number(rpQtyU.value||0));
+      const p=Math.floor(Number(rpQtyP.value||0));
+      rpOk.disabled = !(fromPos && toPos && prod && (u>0 || p>0));
+    }
+    rpQtyU.addEventListener("input", enable);
+    rpQtyP.addEventListener("input", enable);
+
+    // Palete first (se existir)
+    rpPal.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      const code = normalizeBarcode(rpPal.value);
+      if(!code){
+        rpMsg.innerHTML = msgBox("Sem código de palete: usa ORIGEM → PRODUTO.", "warn");
+        rpFrom.focus();
+        return;
+      }
+      const res = await resolvePalletGlobal(code);
+      if(res.ok){
+        pal = res.pbc;
+        fromPos = res.position;
+        prod = res.product;
+        fromSlotType = (res.stock && res.stock.slotType) ? res.stock.slotType : "COMPLETA";
+
+        rpFrom.value = fromPos.code || "";
+        rpProd.value = prod.barcode || "";
+
+        rpFrom.disabled = true;
+        rpProd.disabled = true;
+
+        rpTo.disabled = false;
+        rpTo.focus();
+
+        const s = res.stock || {};
+        if(rpPalInfo) rpPalInfo.innerHTML = `Origem: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • Tipo <b>${esc(fromSlotType)}</b> • UND ${Number(s.qtyUnits||0)} • Pal ${Number(s.qtyPallets||0)}`;
+        rpMsg.innerHTML = msgBox("Palete OK. Agora pica o DESTINO.", "ok");
+        return;
+      }
+
+      if(res.reason==="multiplo"){
+        const rows = res.rows || [];
+        rpMsg.innerHTML = `
+          <div class="msg warn">
+            Esta palete existe em mais do que uma linha. Escolhe:
+            <div style="margin-top:8px;display:grid;gap:8px">
+              ${rows.map((x,i)=>`
+                <button class="btn ghost" data-choice="${i}">
+                  ${esc(x.position.code)} • ${esc(x.product.name)} • ${esc(x.stock.slotType||"")} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
+                </button>
+              `).join("")}
+            </div>
+          </div>`;
+        rpMsg.querySelectorAll("[data-choice]").forEach(btn=>{
+          btn.onclick = ()=>{
+            const i = Number(btn.getAttribute("data-choice"));
+            const pick = rows[i];
+            pal = res.pbc;
+            fromPos = pick.position;
+            prod = pick.product;
+            fromSlotType = (pick.stock && pick.stock.slotType) ? pick.stock.slotType : "COMPLETA";
+            rpFrom.value = fromPos.code || "";
+            rpProd.value = prod.barcode || "";
+            rpFrom.disabled = true;
+            rpProd.disabled = true;
+            rpTo.disabled = false;
+            rpTo.focus();
+            if(rpPalInfo) rpPalInfo.innerHTML = `Origem: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • Tipo <b>${esc(fromSlotType)}</b>`;
+            rpMsg.innerHTML = msgBox("Palete OK. Agora pica o DESTINO.", "ok");
+          };
+        });
+        return;
+      }
+
+      rpMsg.innerHTML = msgBox("Palete não encontrada. Se não tiver código, usa ORIGEM → PRODUTO.", "err");
+      rpFrom.focus();
+    });
+
+    // Sem palete: origem -> produto
+    rpFrom.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      if(pal) return;
+      const code = normalizeBarcode(rpFrom.value);
+      const p = await getPositionByCode(code);
+      if(!p){ rpMsg.innerHTML = msgBox("Origem não encontrada.", "err"); return; }
+      fromPos = p;
+      rpProd.disabled = false;
+      rpProd.focus();
+      rpMsg.innerHTML = msgBox(`Origem OK: <b>${esc(fromPos.code)}</b>. Agora pica o PRODUTO.`, "ok");
+    });
+
+    rpProd.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      if(pal) return;
+      if(!fromPos){ rpMsg.innerHTML = msgBox("Primeiro ORIGEM.", "warn"); return; }
+      const bc = normalizeBarcode(rpProd.value);
+      const p = await getProductByBarcode(bc);
+      if(!p){ rpMsg.innerHTML = msgBox("Produto não encontrado.", "err"); return; }
+      prod = p;
+      fromSlotType = "COMPLETA";
+      rpTo.disabled = false;
+      rpTo.focus();
+      rpMsg.innerHTML = msgBox(`Produto OK: <b>${esc(prod.name)}</b>. Agora pica o DESTINO (picking).`, "ok");
+    });
+
+    // Destino picking
+    rpTo.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      if(!(fromPos && prod)){ rpMsg.innerHTML = msgBox("Primeiro ORIGEM+PRODUTO (ou PALETE).", "warn"); return; }
+      const code = normalizeBarcode(rpTo.value);
+      const p = await getPositionByCode(code);
+      if(!p){ rpMsg.innerHTML = msgBox("Destino não encontrado.", "err"); return; }
+      toPos = p;
+      rpQtyU.disabled = false;
+      rpQtyP.disabled = false;
+      rpQtyU.focus();
+      rpMsg.innerHTML = msgBox(`Destino OK: <b>${esc(toPos.code)}</b>. Agora indica quantidades.`, "ok");
+      enable();
+    });
+
+    rpOk.onclick = async ()=>{
+      try{
+        if(!(fromPos && toPos && prod)) throw new Error("Falta dados (origem/destino/produto).");
+        const qtyU=Math.floor(Number(rpQtyU.value||0));
+        const qtyP=Math.floor(Number(rpQtyP.value||0));
+        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD.");
+
+        // tirar da origem (manter palete se existir)
+        const srcPallet = pal ? pal : (rpPal.value || "");
+        await addStock(fromPos.id, prod.id, srcPallet, fromSlotType || "COMPLETA", -qtyU, -qtyP);
+
+        // colocar no picking (normalmente sem palete)
+        await addStock(toPos.id, prod.id, "", "PICKING", qtyU, qtyP);
+
+        rpMsg.innerHTML = msgBox(`✅ Reabastecido • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${qtyU} UND • ${qtyP} Pal`, "ok");
+        rpQtyU.value=""; rpQtyP.value="";
+        rpQtyU.focus();
+        enable();
+      }catch(err){
+        rpMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+      }
+    };
+  }
+
 
   function setupMudar(){
     const mFrom=$("mFrom"), mTo=$("mTo"), mProd=$("mProd"), mPal=$("mPal"), mQtyU=$("mQtyU"), mQtyP=$("mQtyP"), mAll=$("mAll"), mOk=$("mOk"), mClear=$("mClear");
