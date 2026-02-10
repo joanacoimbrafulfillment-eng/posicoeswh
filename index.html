@@ -759,58 +759,87 @@ $("pSearch").oninput = renderProductsTable;
       opView.innerHTML = `
         <div class="card">
           <h2>Arrumar</h2>
+          <div class="hint">POSIÇÃO → PRODUTO → (tipo/origem/palete) → QTD</div>
 
-          <div class="step"><div class="n">1</div><div><div class="t">Picar POSIÇÃO</div><div class="d">Confirma que a posição existe antes de avançar.</div></div></div>
-          <div class="step"><div class="n">2</div><div><div class="t">Picar PRODUTO</div><div class="d">Escolhe também o tipo: PICKING ou COMPLETA.</div></div></div>
-          <div class="step"><div class="n">3</div><div><div class="t">Palete (opcional) + Quantidades</div><div class="d">Preenche UND e/ou Paletes e confirma.</div></div></div>
-
-          <div class="row">
-            <div class="field">
-              <label>POSIÇÃO (barcode)</label>
-              <input id="aPos" class="mono" placeholder="Picar posição..." />
-              <div class="hint" id="aPosInfo"></div>
-            </div>
-            <div class="field">
-              <label>PRODUTO (barcode)</label>
-              <input id="aProd" class="mono" placeholder="Picar produto..." disabled />
-              <div class="hint" id="aProdInfo"></div>
-            </div>
-            <div class="field">
-              <label>PALETE (barcode) — opcional</label>
-              <input id="aPal" class="mono" placeholder="Picar palete (opcional)..." disabled />
-              <div class="hint">Se não preencher, fica “sem palete”.</div>
-            </div>
-            <div class="field">
-              <label>TIPO</label>
-              <select id="aType" disabled>
-                <option value="PICKING">PICKING</option>
-                <option value="COMPLETA">COMPLETA</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Origem</label>
-              <select id="aOrigin" disabled>
-                <option value="" selected>Selecionar…</option>
-                <option value="NEW">NEW</option>
-                <option value="RETURNS">RETURNS</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>QTD (UND)</label>
-              <input id="aQtyU" type="number" min="0" step="1" placeholder="Ex.: 10" disabled />
-            </div>
-            <div class="field">
-              <label>QTD (PALETES)</label>
-              <input id="aQtyP" type="number" min="0" step="1" placeholder="Ex.: 1" disabled />
+          <div class="step">
+            <div class="n">1</div>
+            <div style="flex:1">
+              <div class="t">Posição</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>POSIÇÃO</label>
+                  <input id="aPos" class="mono" placeholder="Pica a posição..." />
+                  <div class="hint" id="aPosInfo"></div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="right">
-            <button class="btn ok" id="aOk" disabled>Confirmar</button>
-            <button class="btn ghost" id="aClear">Limpar</button>
+
+          <div class="step">
+            <div class="n">2</div>
+            <div style="flex:1">
+              <div class="t">Produto</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PRODUTO</label>
+                  <input id="aProd" class="mono" placeholder="Pica o produto..." disabled />
+                  <div class="hint" id="aProdInfo"></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="aMsg"></div>
+
+          <div class="step">
+            <div class="n">3</div>
+            <div style="flex:1">
+              <div class="t">Detalhes + Quantidade</div>
+
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>TIPO</label>
+                  <select id="aType" disabled>
+                    <option value="PICKING">PICKING</option>
+                    <option value="COMPLETA">COMPLETA</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>ORIGEM</label>
+                  <select id="aOrigin" disabled>
+                    <option value="" selected>Selecionar…</option>
+                    <option value="NEW">NEW</option>
+                    <option value="RETURNS">RETURNS</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PALETE (opcional)</label>
+                  <input id="aPal" class="mono" placeholder="Pica a palete (opcional)..." disabled />
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>UND</label>
+                  <input id="aQtyU" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+                <div class="field">
+                  <label>PALETES</label>
+                  <input id="aQtyP" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+              </div>
+
+              <div class="right" style="margin-top:10px">
+                <button class="btn ghost" id="aClear">Limpar</button>
+                <button class="btn ok" id="aOk" disabled>Confirmar</button>
+              </div>
+
+              <div id="aMsg"></div>
+            </div>
+          </div>
         </div>
-      `;
+`;
       setupArrumar();
     }
 
@@ -818,43 +847,69 @@ $("pSearch").oninput = renderProductsTable;
       opView.innerHTML = `
         <div class="card">
           <h2>Retirar</h2>
+          <div class="hint">POSIÇÃO → PRODUTO → (palete opcional) → QTD</div>
 
-          <div class="step"><div class="n">1</div><div><div class="t">Picar POSIÇÃO</div><div class="d">Onde vais retirar.</div></div></div>
-          <div class="step"><div class="n">2</div><div><div class="t">Picar PRODUTO</div><div class="d">Confirma o produto antes de retirar.</div></div></div>
-          <div class="step"><div class="n">3</div><div><div class="t">Palete (opcional) + Quantidades</div><div class="d">Preenche UND e/ou Paletes e confirma.</div></div></div>
-
-          <div class="row">
-            <div class="field">
-              <label>POSIÇÃO (barcode)</label>
-              <input id="rPos" class="mono" placeholder="Picar posição..." />
-              <div class="hint" id="rPosInfo"></div>
-            </div>
-            <div class="field">
-              <label>PRODUTO (barcode)</label>
-              <input id="rProd" class="mono" placeholder="Picar produto..." disabled />
-              <div class="hint" id="rProdInfo"></div>
-            </div>
-            <div class="field">
-              <label>PALETE (barcode) — opcional</label>
-              <input id="rPal" class="mono" placeholder="Picar palete (opcional)..." disabled />
-              <div class="hint">Se não preencher, retira do registo “sem palete”.</div>
-            </div>
-            <div class="field">
-              <label>QTD (UND)</label>
-              <input id="rQtyU" type="number" min="0" step="1" placeholder="Ex.: 3" disabled />
-            </div>
-            <div class="field">
-              <label>QTD (PALETES)</label>
-              <input id="rQtyP" type="number" min="0" step="1" placeholder="Ex.: 1" disabled />
+          <div class="step">
+            <div class="n">1</div>
+            <div style="flex:1">
+              <div class="t">Posição</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>POSIÇÃO</label>
+                  <input id="rPos" class="mono" placeholder="Pica a posição..." />
+                  <div class="hint" id="rPosInfo"></div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="right">
-            <button class="btn ok" id="rOk" disabled>Confirmar</button>
-            <button class="btn ghost" id="rClear">Limpar</button>
+
+          <div class="step">
+            <div class="n">2</div>
+            <div style="flex:1">
+              <div class="t">Produto</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PRODUTO</label>
+                  <input id="rProd" class="mono" placeholder="Pica o produto..." disabled />
+                  <div class="hint" id="rProdInfo"></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="rMsg"></div>
+
+          <div class="step">
+            <div class="n">3</div>
+            <div style="flex:1">
+              <div class="t">Palete (opcional) + Quantidade</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PALETE (opcional)</label>
+                  <input id="rPal" class="mono" placeholder="Pica a palete (opcional)..." disabled />
+                  <div class="hint" id="rPalInfo"></div>
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>UND</label>
+                  <input id="rQtyU" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+                <div class="field">
+                  <label>PALETES</label>
+                  <input id="rQtyP" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+              </div>
+
+              <div class="right" style="margin-top:10px">
+                <button class="btn ghost" id="rClear">Limpar</button>
+                <button class="btn ok" id="rOk" disabled>Confirmar</button>
+              </div>
+
+              <div id="rMsg"></div>
+            </div>
+          </div>
         </div>
-      `;
+`;
       setupRetirar();
     }
 
@@ -862,100 +917,164 @@ $("pSearch").oninput = renderProductsTable;
       opView.innerHTML = `
         <div class="card">
           <h2>Mudar</h2>
+          <div class="hint">ORIGEM → DESTINO → (produto/palete) → QTD</div>
 
-          <div class="step"><div class="n">1</div><div><div class="t">Picar ORIGEM e DESTINO</div><div class="d">Primeiro a origem, depois o destino.</div></div></div>
-          <div class="step"><div class="n">2</div><div><div class="t">Picar PRODUTO</div><div class="d">Opcional: palete para mover registo específico.</div></div></div>
-          <div class="step"><div class="n">3</div><div><div class="t">Quantidades e confirmar</div><div class="d">Preenche UND e/ou Paletes. Ou usa “TUDO”.</div></div></div>
-
-          <div class="hint">Mover 1 produto (com QTD) ou TUDO da origem.</div>
-          <div class="row" style="margin-top:10px">
-            <div class="field">
-              <label>ORIGEM (barcode)</label>
-              <input id="mFrom" class="mono" placeholder="Picar origem..." />
-              <div class="hint" id="mFromInfo"></div>
-            </div>
-            <div class="field">
-              <label>DESTINO (barcode)</label>
-              <input id="mTo" class="mono" placeholder="Picar destino..." disabled />
-              <div class="hint" id="mToInfo"></div>
-            </div>
-            <div class="field">
-              <label>PRODUTO (barcode)</label>
-              <input id="mProd" class="mono" placeholder="Picar produto..." disabled />
-              <div class="hint" id="mProdInfo"></div>
-            </div>
-            <div class="field">
-              <label>PALETE (barcode) — opcional</label>
-              <input id="mPal" class="mono" placeholder="Picar palete (opcional)..." disabled />
-            </div>
-            <div class="field">
-              <label>QTD (UND)</label>
-              <input id="mQtyU" type="number" min="0" step="1" placeholder="Ex.: 5" disabled />
-            </div>
-            <div class="field">
-              <label>QTD (PALETES)</label>
-              <input id="mQtyP" type="number" min="0" step="1" placeholder="Ex.: 1" disabled />
+          <div class="step">
+            <div class="n">1</div>
+            <div style="flex:1">
+              <div class="t">Origem & Destino</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>ORIGEM</label>
+                  <input id="mFrom" class="mono" placeholder="Pica a origem..." />
+                  <div class="hint" id="mFromInfo"></div>
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>DESTINO</label>
+                  <input id="mTo" class="mono" placeholder="Pica o destino..." disabled />
+                  <div class="hint" id="mToInfo"></div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="right">
-            <button class="btn ok" id="mOk" disabled>Transferir</button>
-            <button class="btn ghost" id="mAll" disabled>TUDO</button>
-            <button class="btn ghost" id="mClear">Limpar</button>
+
+          <div class="step">
+            <div class="n">2</div>
+            <div style="flex:1">
+              <div class="t">Produto / Palete (opcional)</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PRODUTO</label>
+                  <input id="mProd" class="mono" placeholder="Pica o produto..." disabled />
+                  <div class="hint" id="mProdInfo"></div>
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PALETE (opcional)</label>
+                  <input id="mPal" class="mono" placeholder="Pica a palete (opcional)..." disabled />
+                  <div class="hint" id="mPalInfo"></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="mMsg"></div>
+
+          <div class="step">
+            <div class="n">3</div>
+            <div style="flex:1">
+              <div class="t">Quantidade</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>UND</label>
+                  <input id="mQtyU" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+                <div class="field">
+                  <label>PALETES</label>
+                  <input id="mQtyP" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+              </div>
+
+              <div class="right" style="margin-top:10px">
+                <button class="btn ghost" id="mClear">Limpar</button>
+                <button class="btn ghost" id="mAll" disabled>TUDO</button>
+                <button class="btn ok" id="mOk" disabled>Confirmar</button>
+              </div>
+
+              <div id="mMsg"></div>
+            </div>
+          </div>
         </div>
-      `;
+`;
       setupMudar();
     }
 
     if(state.op==="reabastecer"){
       opView.innerHTML = `
         <div class="card">
-          <h2>Reabastecer Picking (parcial)</h2>
-          <div class="hint">Mover parte do stock (normalmente <b>COMPLETA</b>) para uma posição de <b>PICKING</b>. Se tiver código de palete: pica a palete e o sistema encontra origem+produto. Se não tiver: ORIGEM → PRODUTO.</div>
+          <h2>Reabastecer (COMPLETA → PICKING)</h2>
+          <div class="hint">Fluxo simples: <b>Origem</b> → <b>Destino</b> → <b>Quantidade</b>.</div>
 
-          <div class="row" style="margin-top:10px">
-            <div class="field">
-              <label>PALETE (se tiver)</label>
-              <input id="rpPal" class="mono" placeholder="Pica PALETE (se existir)..." />
-              <div class="hint" id="rpPalInfo"></div>
-            </div>
-            <div class="field">
-              <label>ORIGEM (sem palete)</label>
-              <input id="rpFrom" class="mono" placeholder="Pica ORIGEM (sem palete)..." />
-            </div>
-            <div class="field">
-              <label>PRODUTO (sem palete)</label>
-              <input id="rpProd" class="mono" placeholder="Pica PRODUTO..." disabled />
+          <div class="step">
+            <div class="n">1</div>
+            <div style="flex:1">
+              <div class="t">Origem</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PALETE ORIGEM (se tiver)</label>
+                  <input id="rpPal" class="mono" placeholder="Pica a palete origem..." />
+                  <div class="hint" id="rpPalInfo"></div>
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:6px">
+                <label style="display:flex;gap:10px;align-items:center">
+                  <input type="checkbox" id="rpManual" />
+                  <span>Sem código de palete (usar ORIGEM + PRODUTO)</span>
+                </label>
+              </div>
+
+              <div id="rpManualBox" style="display:none;margin-top:8px">
+                <div class="row">
+                  <div class="field">
+                    <label>ORIGEM (posição)</label>
+                    <input id="rpFrom" class="mono" placeholder="Pica a posição origem..." />
+                  </div>
+                  <div class="field">
+                    <label>PRODUTO</label>
+                    <input id="rpProd" class="mono" placeholder="Pica o produto..." disabled />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="row" style="margin-top:10px">
-            <div class="field">
-              <label>DESTINO (PICKING)</label>
-              <input id="rpTo" class="mono" placeholder="Pica DESTINO picking..." disabled />
+          <div class="step">
+            <div class="n">2</div>
+            <div style="flex:1">
+              <div class="t">Destino</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PALETE DESTINO (opcional)</label>
+                  <input id="rpToPal" class="mono" placeholder="Pica palete destino (se já existe)..." disabled />
+                  <div class="hint" id="rpToPalInfo"></div>
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>POSIÇÃO DESTINO (picking)</label>
+                  <input id="rpTo" class="mono" placeholder="Pica a posição destino..." disabled />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="row" style="margin-top:10px">
-            <div class="field">
-              <label>QTD (UND)</label>
-              <input id="rpQtyU" type="number" min="0" step="1" placeholder="0" disabled />
-            </div>
-            <div class="field">
-              <label>QTD (PALETES)</label>
-              <input id="rpQtyP" type="number" min="0" step="1" placeholder="0" disabled />
+          <div class="step">
+            <div class="n">3</div>
+            <div style="flex:1">
+              <div class="t">Quantidade</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>UND</label>
+                  <input id="rpQtyU" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+                <div class="field">
+                  <label>PALETES</label>
+                  <input id="rpQtyP" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+              </div>
+
+              <div class="right" style="margin-top:10px">
+                <button class="btn ghost" id="rpClear">Limpar</button>
+                <button class="btn ok" id="rpOk" disabled>Confirmar</button>
+              </div>
+
+              <div id="rpMsg"></div>
             </div>
           </div>
-
-          <div class="right" style="margin-top:10px">
-            <button class="btn ghost" id="rpClear">Limpar</button>
-            <button class="btn ok" id="rpOk" disabled>Confirmar</button>
-          </div>
-
-          <div id="rpMsg"></div>
         </div>
-      `;
+`;
       setupReabastecer();
     }
 
@@ -1238,76 +1357,98 @@ function setupRetirar(){
   }
 
   function setupReabastecer(){
-    const rpPal=$("rpPal"), rpFrom=$("rpFrom"), rpProd=$("rpProd"), rpTo=$("rpTo"), rpQtyU=$("rpQtyU"), rpQtyP=$("rpQtyP"), rpOk=$("rpOk"), rpClear=$("rpClear");
-    const rpMsg=$("rpMsg"), rpPalInfo=$("rpPalInfo");
+    const rpPal=$("rpPal"), rpManual=$("rpManual"), rpManualBox=$("rpManualBox"),
+          rpFrom=$("rpFrom"), rpProd=$("rpProd"),
+          rpTo=$("rpTo"), rpToPal=$("rpToPal"),
+          rpQtyU=$("rpQtyU"), rpQtyP=$("rpQtyP"),
+          rpOk=$("rpOk"), rpClear=$("rpClear");
+    const rpMsg=$("rpMsg"), rpPalInfo=$("rpPalInfo"), rpToPalInfo=$("rpToPalInfo");
 
-    let fromPos=null, toPos=null, prod=null, pal=null, fromSlotType="COMPLETA";
+    let fromPos=null, toPos=null, prod=null;
+    let palFrom=null, palTo=null;
+    let fromSlotType="COMPLETA";
+
+    function setMsg(text, kind){ rpMsg.innerHTML = msgBox(text, kind||"ok"); }
 
     function reset(){
-      fromPos=toPos=prod=pal=null;
+      fromPos=toPos=prod=null;
+      palFrom=palTo=null;
       fromSlotType="COMPLETA";
-      rpPal.value=""; rpFrom.value=""; rpProd.value=""; rpTo.value=""; rpQtyU.value=""; rpQtyP.value="";
-      rpProd.disabled=true;
-      rpTo.disabled=true;
-      rpQtyU.disabled=true;
-      rpQtyP.disabled=true;
-      rpOk.disabled=true;
+
+      // inputs
+      rpPal.value="";
+      if(rpFrom) rpFrom.value="";
+      if(rpProd) rpProd.value="";
+      rpTo.value=""; rpToPal.value="";
+      rpQtyU.value=""; rpQtyP.value="";
+
+      // states
+      rpPal.disabled = false;
+      if(rpManual){ rpManual.checked = false; }
+      if(rpManualBox){ rpManualBox.style.display = "none"; }
+
+      if(rpFrom) rpFrom.disabled = false;
+      if(rpProd) rpProd.disabled = true;
+
+      rpToPal.disabled = true;
+      rpTo.disabled = true;
+      rpQtyU.disabled = true;
+      rpQtyP.disabled = true;
+
+      rpOk.disabled = true;
+
       if(rpPalInfo) rpPalInfo.textContent = "";
-      rpMsg.innerHTML = msgBox("Pica PALETE (se existir) ou então ORIGEM → PRODUTO.", "warn");
+      if(rpToPalInfo) rpToPalInfo.textContent = "";
+
+      setMsg("Pica a PALETE ORIGEM. Se não tiver código, ativa “Sem código de palete”.", "warn");
       rpPal.focus();
     }
-    reset();
-    rpClear.onclick = reset;
 
     function enable(){
       const u=Math.floor(Number(rpQtyU.value||0));
       const p=Math.floor(Number(rpQtyP.value||0));
       rpOk.disabled = !(fromPos && toPos && prod && (u>0 || p>0));
     }
-    rpQtyU.addEventListener("input", enable);
-    rpQtyP.addEventListener("input", enable);
 
-    // Palete first (se existir)
-    rpPal.addEventListener("keydown", async (e)=>{
-      if(e.key!=="Enter") return;
-      e.preventDefault();
-      const code = normalizeBarcode(rpPal.value);
-      if(!code){
-        rpMsg.innerHTML = msgBox("Sem código de palete: usa ORIGEM → PRODUTO.", "warn");
-        rpFrom.focus();
-        return;
-      }
+    function unlockDestino(){
+      rpToPal.disabled = false;
+      rpTo.disabled = false;
+      // se já veio destino via palete, rpTo pode estar disabled, mas aqui é o modo normal
+      if(!rpTo.disabled) rpTo.focus();
+    }
+
+    // ===== ORIGEM via PALETE
+    async function resolveOrigemByPalete(code){
       const res = await resolvePalletGlobal(code);
       if(res.ok){
-        pal = res.pbc;
+        palFrom = res.pbc;
         fromPos = res.position;
         prod = res.product;
         fromSlotType = (res.stock && res.stock.slotType) ? res.stock.slotType : "COMPLETA";
 
-        rpFrom.value = fromPos.code || "";
-        rpProd.value = prod.barcode || "";
+        if(rpFrom) rpFrom.value = fromPos.code || "";
+        if(rpProd) rpProd.value = prod.barcode || "";
 
-        rpFrom.disabled = true;
-        rpProd.disabled = true;
-
-        rpTo.disabled = false;
-        rpTo.focus();
+        if(rpFrom) rpFrom.disabled = true;
+        if(rpProd) rpProd.disabled = true;
 
         const s = res.stock || {};
-        if(rpPalInfo) rpPalInfo.innerHTML = `Origem: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • Tipo <b>${esc(fromSlotType)}</b> • UND ${Number(s.qtyUnits||0)} • Pal ${Number(s.qtyPallets||0)}`;
-        rpMsg.innerHTML = msgBox("Palete OK. Agora pica o DESTINO.", "ok");
-        return;
+        if(rpPalInfo) rpPalInfo.innerHTML = `Origem: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • UND ${Number(s.qtyUnits||0)} • Pal ${Number(s.qtyPallets||0)}`;
+
+        unlockDestino();
+        setMsg("Origem OK. Agora (opcional) pica PALETE DESTINO e depois POSIÇÃO DESTINO.", "ok");
+        return true;
       }
 
       if(res.reason==="multiplo"){
         const rows = res.rows || [];
         rpMsg.innerHTML = `
           <div class="msg warn">
-            Esta palete existe em mais do que uma linha. Escolhe:
+            Palete origem aparece em várias linhas. Escolhe:
             <div style="margin-top:8px;display:grid;gap:8px">
               ${rows.map((x,i)=>`
                 <button class="btn ghost" data-choice="${i}">
-                  ${esc(x.position.code)} • ${esc(x.product.name)} • ${esc(x.stock.slotType||"")} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
+                  ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
                 </button>
               `).join("")}
             </div>
@@ -1316,94 +1457,196 @@ function setupRetirar(){
           btn.onclick = ()=>{
             const i = Number(btn.getAttribute("data-choice"));
             const pick = rows[i];
-            pal = res.pbc;
+            palFrom = res.pbc;
             fromPos = pick.position;
             prod = pick.product;
             fromSlotType = (pick.stock && pick.stock.slotType) ? pick.stock.slotType : "COMPLETA";
-            rpFrom.value = fromPos.code || "";
-            rpProd.value = prod.barcode || "";
-            rpFrom.disabled = true;
-            rpProd.disabled = true;
-            rpTo.disabled = false;
-            rpTo.focus();
-            if(rpPalInfo) rpPalInfo.innerHTML = `Origem: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • Tipo <b>${esc(fromSlotType)}</b>`;
-            rpMsg.innerHTML = msgBox("Palete OK. Agora pica o DESTINO.", "ok");
+
+            if(rpFrom) rpFrom.value = fromPos.code || "";
+            if(rpProd) rpProd.value = prod.barcode || "";
+
+            if(rpFrom) rpFrom.disabled = true;
+            if(rpProd) rpProd.disabled = true;
+
+            if(rpPalInfo) rpPalInfo.innerHTML = `Origem: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)}`;
+            unlockDestino();
+            setMsg("Origem OK. Agora (opcional) pica PALETE DESTINO e depois POSIÇÃO DESTINO.", "ok");
           };
         });
+        return false;
+      }
+
+      setMsg("Palete origem não encontrada. Se não tiver código, ativa “Sem código de palete”.", "err");
+      return false;
+    }
+
+    // ===== DESTINO via PALETE (opcional): se existir, valida produto e pode auto-definir posição
+    async function handleDestinoPalete(code){
+      const res = await resolvePalletGlobal(code);
+      if(res.ok){
+        if(res.product && res.product.id && prod && res.product.id !== prod.id){
+          setMsg("A palete destino é de outro produto. Usa uma palete destino do mesmo produto.", "err");
+          palTo = null;
+          if(rpToPalInfo) rpToPalInfo.textContent = "";
+          return;
+        }
+        palTo = res.pbc;
+        toPos = res.position;
+
+        rpTo.value = toPos.code || "";
+        rpTo.disabled = true;
+
+        const s = res.stock || {};
+        if(rpToPalInfo) rpToPalInfo.innerHTML = `Destino: <b>${esc(toPos.code)}</b> • UND ${Number(s.qtyUnits||0)} • Pal ${Number(s.qtyPallets||0)}`;
+
+        rpQtyU.disabled = false;
+        rpQtyP.disabled = false;
+        rpQtyU.focus();
+        enable();
+        setMsg("Destino OK. Agora indica quantidades.", "ok");
         return;
       }
 
-      rpMsg.innerHTML = msgBox("Palete não encontrada. Se não tiver código, usa ORIGEM → PRODUTO.", "err");
-      rpFrom.focus();
-    });
-
-    // Sem palete: origem -> produto
-    rpFrom.addEventListener("keydown", async (e)=>{
-      if(e.key!=="Enter") return;
-      e.preventDefault();
-      if(pal) return;
-      const code = normalizeBarcode(rpFrom.value);
-      const p = await getPositionByCode(code);
-      if(!p){ rpMsg.innerHTML = msgBox("Origem não encontrada.", "err"); return; }
-      fromPos = p;
-      rpProd.disabled = false;
-      rpProd.focus();
-      rpMsg.innerHTML = msgBox(`Origem OK: <b>${esc(fromPos.code)}</b>. Agora pica o PRODUTO.`, "ok");
-    });
-
-    rpProd.addEventListener("keydown", async (e)=>{
-      if(e.key!=="Enter") return;
-      e.preventDefault();
-      if(pal) return;
-      if(!fromPos){ rpMsg.innerHTML = msgBox("Primeiro ORIGEM.", "warn"); return; }
-      const bc = normalizeBarcode(rpProd.value);
-      const p = await getProductByBarcode(bc);
-      if(!p){ rpMsg.innerHTML = msgBox("Produto não encontrado.", "err"); return; }
-      prod = p;
-      fromSlotType = "COMPLETA";
+      // não encontrada: aceita como "vai criar/atualizar" mas precisa posição
+      palTo = code;
+      if(rpToPalInfo) rpToPalInfo.textContent = "Não existe no stock (vai ser criada/atualizada no destino).";
       rpTo.disabled = false;
       rpTo.focus();
-      rpMsg.innerHTML = msgBox(`Produto OK: <b>${esc(prod.name)}</b>. Agora pica o DESTINO (picking).`, "ok");
+      setMsg("Agora pica a POSIÇÃO DESTINO.", "warn");
+    }
+
+    // ===== eventos
+    rpClear.onclick = reset;
+
+    rpQtyU.addEventListener("input", enable);
+    rpQtyP.addEventListener("input", enable);
+
+    // toggle manual
+    if(rpManual){
+      rpManual.onchange = ()=>{
+        const on = !!rpManual.checked;
+        if(rpManualBox) rpManualBox.style.display = on ? "" : "none";
+        if(on){
+          // manual: limpa palete e desbloqueia campos
+          palFrom = null;
+          fromPos = null;
+          prod = null;
+          rpPal.value = "";
+          if(rpPalInfo) rpPalInfo.textContent = "";
+          if(rpFrom) { rpFrom.disabled = false; rpFrom.value = ""; rpFrom.focus(); }
+          if(rpProd) { rpProd.disabled = true; rpProd.value = ""; }
+          // bloquear destino até ter produto
+          rpToPal.disabled = true;
+          rpTo.disabled = true;
+          rpQtyU.disabled = true;
+          rpQtyP.disabled = true;
+          rpOk.disabled = true;
+          setMsg("Modo manual: ORIGEM → PRODUTO.", "warn");
+        }else{
+          reset();
+        }
+      };
+    }
+
+    // palete origem enter
+    rpPal.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      if(rpManual && rpManual.checked) return;
+      const code = normalizeBarcode(rpPal.value);
+      if(!code){ setMsg("Pica a palete origem.", "warn"); return; }
+      await resolveOrigemByPalete(code);
     });
 
-    // Destino picking
+    // manual origin
+    if(rpFrom){
+      rpFrom.addEventListener("keydown", async (e)=>{
+        if(e.key!=="Enter") return;
+        e.preventDefault();
+        if(!(rpManual && rpManual.checked)) return;
+        const code = normalizeBarcode(rpFrom.value);
+        const p = await getPositionByCode(code);
+        if(!p){ setMsg("Origem não encontrada.", "err"); return; }
+        fromPos = p;
+        if(rpProd){ rpProd.disabled = false; rpProd.focus(); }
+        setMsg("Origem OK. Agora pica o produto.", "ok");
+      });
+    }
+
+    if(rpProd){
+      rpProd.addEventListener("keydown", async (e)=>{
+        if(e.key!=="Enter") return;
+        e.preventDefault();
+        if(!(rpManual && rpManual.checked)) return;
+        if(!fromPos){ setMsg("Primeiro pica a origem.", "warn"); return; }
+        const bc = normalizeBarcode(rpProd.value);
+        const p = await getProductByBarcode(bc);
+        if(!p){ setMsg("Produto não encontrado.", "err"); return; }
+        prod = p;
+        fromSlotType = "COMPLETA";
+        unlockDestino();
+        setMsg("Produto OK. Agora (opcional) palete destino e posição destino.", "ok");
+      });
+    }
+
+    // destino palete optional
+    rpToPal.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      if(!prod){ setMsg("Primeiro define a origem.", "warn"); return; }
+      const code = normalizeBarcode(rpToPal.value);
+      if(!code){
+        palTo = null;
+        if(rpToPalInfo) rpToPalInfo.textContent = "";
+        rpTo.disabled = false;
+        rpTo.focus();
+        setMsg("Pica a posição destino.", "warn");
+        return;
+      }
+      await handleDestinoPalete(code);
+    });
+
+    // destino posição
     rpTo.addEventListener("keydown", async (e)=>{
       if(e.key!=="Enter") return;
       e.preventDefault();
-      if(!(fromPos && prod)){ rpMsg.innerHTML = msgBox("Primeiro ORIGEM+PRODUTO (ou PALETE).", "warn"); return; }
+      if(!prod){ setMsg("Primeiro define a origem.", "warn"); return; }
+      if(rpTo.disabled) return; // já definido via palete destino
       const code = normalizeBarcode(rpTo.value);
       const p = await getPositionByCode(code);
-      if(!p){ rpMsg.innerHTML = msgBox("Destino não encontrado.", "err"); return; }
+      if(!p){ setMsg("Destino não encontrado.", "err"); return; }
       toPos = p;
       rpQtyU.disabled = false;
       rpQtyP.disabled = false;
       rpQtyU.focus();
-      rpMsg.innerHTML = msgBox(`Destino OK: <b>${esc(toPos.code)}</b>. Agora indica quantidades.`, "ok");
+      setMsg("Destino OK. Agora indica quantidades.", "ok");
       enable();
     });
 
+    // confirmar
     rpOk.onclick = async ()=>{
       try{
-        if(!(fromPos && toPos && prod)) throw new Error("Falta dados (origem/destino/produto).");
+        if(!(fromPos && toPos && prod)) throw new Error("Falta origem/destino/produto.");
         const qtyU=Math.floor(Number(rpQtyU.value||0));
         const qtyP=Math.floor(Number(rpQtyP.value||0));
-        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD.");
+        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta quantidade.");
 
-        // tirar da origem (manter palete se existir)
-        const srcPallet = pal ? pal : (rpPal.value || "");
+        const srcPallet = palFrom ? palFrom : (rpPal.value || "");
+        const dstPallet = palTo ? palTo : (rpToPal.value || "");
+
         await addStock(fromPos.id, prod.id, srcPallet, fromSlotType || "COMPLETA", -qtyU, -qtyP);
+        await addStock(toPos.id, prod.id, dstPallet, "PICKING", qtyU, qtyP);
 
-        // colocar no picking (normalmente sem palete)
-        await addStock(toPos.id, prod.id, "", "PICKING", qtyU, qtyP);
-
-        rpMsg.innerHTML = msgBox(`✅ Reabastecido • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${qtyU} UND • ${qtyP} Pal`, "ok");
+        setMsg(`✅ Reabastecido • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${qtyU} UND • ${qtyP} Pal`, "ok");
         rpQtyU.value=""; rpQtyP.value="";
         rpQtyU.focus();
         enable();
       }catch(err){
-        rpMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+        setMsg("Erro: "+esc(err.message||err), "err");
       }
     };
+
+    reset();
   }
 
 
