@@ -583,10 +583,37 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
   }
 
-  // Alias for older handlers
-  function getPositionByCode(code){
-    return getPositionByBarcode(code);
+  async function getPositionByInput(input){
+    const raw = String(input||"").trim();
+    if(!raw) return null;
+
+    // 1) Try as barcode (document id = encoded barcode)
+    const b = normalizeBarcode(raw) || raw;
+    try{
+      const snap = await getDoc(doc(db, COL_POSITIONS, encodeKey(b)));
+      if(snap.exists()) return ({ id: snap.id, ...snap.data() });
+    }catch(_e){}
+
+    // 2) Try as location code (field: code) - exact and uppercase
+    const code1 = raw;
+    const code2 = raw.toUpperCase();
+    for(const code of [code1, code2]){
+      const q = query(collection(db, COL_POSITIONS), where("code","==",code), limit(1));
+      const qs = await getDocs(q);
+      if(!qs.empty){
+        const d = qs.docs[0];
+        return ({ id: d.id, ...d.data() });
+      }
+    }
+    return null;
   }
+
+  // Back-compat
+  function getPositionByCode(code){
+    return getPositionByInput(code);
+  }
+
+
 
 
   async function upsertProduct({name, barcode}){
@@ -597,7 +624,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
   async function upsertPosition({code, barcode}){
     const b = normalizeBarcode(barcode);
     if(!code || !b) throw new Error("Location e barcode são obrigatórios.");
-    await setDoc(doc(db, COL_POSITIONS, encodeKey(b)), { code: code.trim(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
+    await setDoc(doc(db, COL_POSITIONS, encodeKey(b)), { code: code.trim().toUpperCase(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
   }
 
   async function loadAdminLists(){
@@ -1780,11 +1807,9 @@ $("pSearch").oninput = renderProductsTable;
 
         async function resolvePos(){
 try{
-        pos = await getPositionByBarcode(aPos.value);
+        pos = await getPositionByInput(aPos.value);
         if(!pos) throw new Error("Location não encontrada.");
         aPosInfo.textContent = "✅ " + (pos.code||"");
-        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
-
         aProd.disabled=false; aProd.focus(); aMsg.innerHTML="";
       }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
     
@@ -1792,7 +1817,6 @@ try{
 
     aPos.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePos(); }});
     const aPosOk=$("aPosOk"); if(aPosOk) aPosOk.addEventListener("click", ()=>resolvePos());
-    aPos.addEventListener("blur", ()=>{ if(String(aPos.value||"").trim()) resolvePos(); });
 aProd.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDefault();
       try{
         prod = await getProductByBarcode(aProd.value);
@@ -2006,8 +2030,6 @@ function setupRemove(){
         if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD.");
         await addStock(pos.id, prod.id, pal, (stock.slotType||"PICKING"), -qtyU, -qtyP);
         rMsg.innerHTML = msgBox(`✅ RETIRADO • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(pal)} • -${qtyU} UND • -${qtyP} Pal`, "ok");
-        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
-
         reset();
       }catch(err){
         rMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
@@ -2298,8 +2320,6 @@ function setupRemove(){
         await transferReplenish(fromPos.id, toPos.id, prod.id, srcPallet, dstPallet, qtyU, qtyP);
 
         setMsg(`✅ Reabastecido • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${qtyU} UND • ${qtyP} Pal`, "ok");
-        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
-
         rpQtyU.value=""; rpQtyP.value="";
         rpQtyU.focus();
         enable();
@@ -2528,7 +2548,6 @@ if(!(fromPos && prod && pal)){ mMsg.innerHTML = msgBox("Primeiro pica a PALETE."
 
     mTo.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolveDest(); }});
     const mToOk=$("mToOk"); if(mToOk) mToOk.addEventListener("click", ()=>resolveDest());
-    mTo.addEventListener("blur", ()=>{ if(String(mTo.value||"").trim()) resolveDest(); });
 mMove.onclick = async ()=>{
       try{
         if(!(fromPos && toPos && prod && pal)) throw new Error("Falta dados.");
@@ -2539,8 +2558,6 @@ mMove.onclick = async ()=>{
         if(mQtyP) mQtyP.value = String(p);
         await moveStock(fromPos.id, toPos.id, prod.id, pal, u, p);
         mMsg.innerHTML = msgBox(`✅ MOVIDO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${esc(pal)}`, "ok");
-        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
-
         reset();
       }catch(err){
         mMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
@@ -2835,7 +2852,7 @@ mMove.onclick = async ()=>{
     async function run(){
       try{
         msg.innerHTML=""; results.innerHTML="";
-        pos = await getPositionByBarcode(inp.value);
+        pos = await getPositionByInput(inp.value);
         if(!pos) throw new Error("Location não encontrada.");
         info.textContent = "✅ " + (pos.code||"");
 
