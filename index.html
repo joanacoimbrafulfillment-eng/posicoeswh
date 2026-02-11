@@ -729,7 +729,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         origin: ((dU>=0 || dP>=0) && (org==="NEW"||org==="RETURNS")) ? org : "",
       });
     });
-  
+  }
 
   async function ensurePickingPallet(positionId, productId, palletBarcode){
     const palletId = palletIdFromBarcode(palletBarcode);
@@ -816,7 +816,6 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       });
     });
   }
-}
 
   async function moveStock(fromPositionId, toPositionId, productId, palletBarcode, units, pallets){
     const user = auth.currentUser;
@@ -3844,10 +3843,7 @@ let codes = [];
     }
   });
 
-  
-  // expose helpers for safety (module scope)
-  window.transferReplenish = transferReplenish;
-/***********************
+  /***********************
    REGRAS FIRESTORE (colar no Firebase Console → Firestore Rules)
 
    rules_version = '2';
