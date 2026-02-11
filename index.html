@@ -1202,10 +1202,13 @@ $("pSearch").oninput = renderProductsTable;
             <div style="flex:1">
               <div class="t">Location</div>
               <div class="row" style="margin-top:8px">
-                <div class="field">
-                  <label>POSIÇÃO</label>
-                  <input id="aPos" class="mono" placeholder="Pica a posição..." />
-                  <div class="hint" id="aPosInfo"></div>
+                <div class="row" style="gap:8px;align-items:flex-end">
+                  <div class="field" style="flex:1">
+                    <label>LOCATION</label>
+                    <input id="aPos" class="mono" inputmode="text" autocapitalize="characters" autocomplete="off" enterkeyhint="done" placeholder="Type or scan location..." />
+                    <div class="hint" id="aPosInfo"></div>
+                  </div>
+                  <button class="btn ghost" id="aPosOk" style="min-width:86px;height:46px;margin-top:22px">OK</button>
                 </div>
               </div>
             </div>
@@ -1398,10 +1401,13 @@ $("pSearch").oninput = renderProductsTable;
             <div style="flex:1">
               <div class="t">Destino</div>
               <div class="row" style="margin-top:8px">
-                <div class="field">
-                  <label>DESTINATION</label>
-                  <input id="mTo" class="mono" placeholder="Scan destination..." disabled />
-                  <div class="hint" id="mToInfo"></div>
+                <div class="row" style="gap:8px;align-items:flex-end">
+                  <div class="field" style="flex:1">
+                    <label>DESTINATION (location)</label>
+                    <input id="mTo" class="mono" inputmode="text" autocapitalize="characters" autocomplete="off" enterkeyhint="done" placeholder="Type or scan destination..." disabled />
+                    <div class="hint" id="mToInfo"></div>
+                  </div>
+                  <button class="btn ghost" id="mToOk" style="min-width:86px;height:46px;margin-top:22px" disabled>OK</button>
                 </div>
                 <div class="field">
                   <label>STATUS (optional)</label>
@@ -1592,8 +1598,8 @@ $("pSearch").oninput = renderProductsTable;
       aOk.disabled=!(pos && prod && (u>0 || p>0) && (aOrigin.value==="NEW" || aOrigin.value==="RETURNS"));
     };
 
-    aPos.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDefault();
-      try{
+        async function resolvePos(){
+try{
         pos = await getPositionByBarcode(aPos.value);
         if(!pos) throw new Error("Location não encontrada.");
         aPosInfo.textContent = "✅ " + (pos.code||"");
@@ -1601,8 +1607,13 @@ $("pSearch").oninput = renderProductsTable;
 
         aProd.disabled=false; aProd.focus(); aMsg.innerHTML="";
       }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
-    }});
-    aProd.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDefault();
+    
+    }
+
+    aPos.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePos(); }});
+    const aPosOk=$("aPosOk"); if(aPosOk) aPosOk.addEventListener("click", ()=>resolvePos());
+    aPos.addEventListener("blur", ()=>{ if(String(aPos.value||"").trim()) resolvePos(); });
+aProd.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDefault();
       try{
         prod = await getProductByBarcode(aProd.value);
         if(!prod) throw new Error("Produto não encontrado.");
@@ -2324,19 +2335,21 @@ function setupRemove(){
 
     mPal.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
 
-    mTo.addEventListener("keydown", async (e)=>{
-      if(e.key!=="Enter") return;
-      e.preventDefault();
-      if(!(fromPos && prod && pal)){ mMsg.innerHTML = msgBox("Primeiro pica a PALETE.", "warn"); return; }
+        async function resolveDest(){
+if(!(fromPos && prod && pal)){ mMsg.innerHTML = msgBox("Primeiro pica a PALETE.", "warn"); return; }
       const code = normalizeBarcode(mTo.value);
       const p = await getPositionByCode(code);
       if(!p){ mMsg.innerHTML = msgBox("Destino não encontrado.", "err"); return; }
       toPos = p;
       mMove.disabled = false;
       mMsg.innerHTML = msgBox(`Destino OK: <b>${esc(toPos.code)}</b>. Agora podes mover.`, "ok");
-    });
+    
+    }
 
-    mMove.onclick = async ()=>{
+    mTo.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolveDest(); }});
+    const mToOk=$("mToOk"); if(mToOk) mToOk.addEventListener("click", ()=>resolveDest());
+    mTo.addEventListener("blur", ()=>{ if(String(mTo.value||"").trim()) resolveDest(); });
+mMove.onclick = async ()=>{
       try{
         if(!(fromPos && toPos && prod && pal)) throw new Error("Falta dados.");
         const u = Number(stock.qtyUnits||0);
