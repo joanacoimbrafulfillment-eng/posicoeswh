@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Armazém — Operação & Controlo (Firebase)</title>
+  <title>Warehouse — Operations & Control (Firebase)</title>
   <style>
   :root{
     --bg:#f6f7fb;
@@ -126,41 +126,79 @@
     .opMobile .card{border-radius:18px}
   }
 
+
+  /* ===== Operação Mobile: menu + ecrã único ===== */
+  .opMenuGrid{display:grid;gap:12px}
+  .opMenuBtn{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px;border:1px solid var(--line);border-radius:16px;background:#fff;cursor:pointer}
+  .opMenuBtn .k{font-weight:800}
+  .opMenuBtn .s{color:var(--muted);font-size:13px}
+  .opTopbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .opBack{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;cursor:pointer}
+  .opBack:active{transform:scale(.99)}
+  @media(max-width:820px){
+    .opTabsRow{display:none !important}
+    .opMenuBtn{min-height:62px}
+    .opMenuBtn .k{font-size:18px}
+  }
+
+
+  /* ===== Login Fullscreen Gate ===== */
+  #appShell{display:none}
+  #loginScreen{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;padding:18px;z-index:9999}
+  #loginCard{width:min(520px,100%);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow)}
+  #loginCard h2{margin:0 0 6px}
+  #loginCard .hint{margin:0 0 12px}
+  #userCorner{display:none;gap:10px;align-items:center}
+  @media(max-width:820px){
+    #loginCard{border-radius:22px}
+  }
+
 </style>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
+<div id="loginScreen">
+  <div id="loginCard">
+    <h2>Sign in</h2>
+    <div class="hint">Precisas de autenticação para usar o sistema.</div>
+
+    <div class="row">
+      <div class="field" style="flex:1;min-width:220px">
+        <label>Email</label>
+        <input id="loginEmail" placeholder="email@empresa.com" autocomplete="username" />
+      </div>
+      <div class="field" style="flex:1;min-width:220px">
+        <label>Password</label>
+        <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px;justify-content:space-between;align-items:center">
+      <button class="btn ok" id="btnLogin">Entrar</button>
+      <div id="authMsg" style="flex:1;min-width:240px;margin-left:10px"></div>
+    </div>
+
+    <div class="hint" style="margin-top:12px">
+      Perfis: <b>@admin.com</b> (Admin+Operação) • <b>@wh.com</b> (Operação+Consulta).<br>
+      ⚠️ Abre sempre em <b>HTTPS</b> (Firebase Hosting) ou em <code>http://localhost</code>.
+    </div>
+  </div>
+</div>
+
+<div id="appShell">
 <header>
   <div class="wrap">
     <div class="row" style="justify-content:space-between;align-items:center">
-      <h1>Armazém — Operação & Controlo</h1>
-      <div class="row" style="align-items:center">
+      <h1>Warehouse — Operations & Control</h1>
+      <div class="row" id="userCorner">
         <span class="pill" id="authPill">Auth: —</span>
+        <button class="btn danger" id="btnLogout">Logout</button>
         <button class="btn ghost" id="btnReload">Recarregar</button>
       </div>
     </div>
 
     <div class="row" style="margin-top:10px;justify-content:space-between">
       <div class="tabs" id="tabs"></div>
-
-      <div class="row" style="align-items:end">
-        <div class="field" style="min-width:220px">
-          <label>Email</label>
-          <input id="loginEmail" placeholder="email@empresa.com" />
-        </div>
-        <div class="field" style="min-width:220px">
-          <label>Password</label>
-          <input id="loginPass" type="password" placeholder="••••••••" />
-        </div>
-        <button class="btn ok" id="btnLogin">Login</button>
-        <button class="btn danger" id="btnLogout">Logout</button>
-        <div id="authMsg" style="flex:1;min-width:240px"></div>
-      </div>
-    </div>
-
-    <div class="hint" style="margin-top:10px">
-      ⚠️ Abre isto sempre em <b>HTTPS</b> (Firebase Hosting) ou em <code>http://localhost</code>. <b>Não funciona em file://</b>.
-      <br>Perfis: <b>@admin.com</b> (Admin+Operação) • <b>@wh.com</b> (Operação+Consulta).
     </div>
   </div>
 </header>
@@ -168,8 +206,31 @@
 <div class="wrap">
   <div id="view"></div>
 </div>
+</div>
 
 <script type="module">
+  // ===== Debug Overlay (evita ecrã branco) =====
+  function showFatal(err){
+    try{
+      console.error(err);
+      const msg = (err && (err.message||err.reason||err))+"";
+      const box = document.getElementById("authMsg") || document.getElementById("view") || document.body;
+      if(box){
+        const div = document.createElement("div");
+        div.className = "msg err";
+        div.style.marginTop = "12px";
+        div.innerHTML = "Erro: " + (msg.replace(/[&<>]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;"}[c])));
+        box.prepend(div);
+      }
+      const ls = document.getElementById("loginScreen");
+      const as = document.getElementById("appShell");
+      if(ls) ls.style.display = "flex";
+      if(as) as.style.display = "none";
+    }catch(e){}
+  }
+  window.addEventListener("error", (e)=>showFatal(e.error||e.message||e));
+  window.addEventListener("unhandledrejection", (e)=>showFatal(e.reason||e));
+
   // ===== Firebase config (já preenchido) =====
   const firebaseConfig = {
     apiKey: "AIzaSyCFnPU0CZPtcMqPi_aq2XJVQodIgWZV4h0",
@@ -196,6 +257,7 @@
   const COL_POSITIONS = "positions";
   const COL_STOCK = "stockItems";
   const COL_MOVEMENTS = "movements";
+  const COL_CONFIG = "config";
 
   // stockItems/{positionId__productId__palletId}
   // { positionId, productId, palletBarcode, slotType:"PICKING"|"COMPLETA", qtyUnits, qtyPallets, updatedAt }
@@ -205,16 +267,113 @@
   const viewEl = $("view");
   const authPill = $("authPill");
 
-  const state = { tab: "operacao", op: "arrumar", user: null, cache: { products: [], positions: [] } };
+  const appShell = document.getElementById("appShell");
+  const loginScreen = document.getElementById("loginScreen");
+  const userCorner = document.getElementById("userCorner");
+
+  function setGate(mode){
+    const ok = (mode==="app");
+    if(loginScreen) loginScreen.style.display = ok ? "none" : "flex";
+    if(appShell) appShell.style.display = ok ? "block" : "none";
+    if(userCorner) userCorner.style.display = ok ? "flex" : "none";
+  }
+
+  
+  
+  const DEFAULT_STATUSES = ["NORMAL","PACKED"]; // PACKED = "EMBALADO"
+  let _statusesCache = null;
+
+  async function loadStatuses(){
+    try{
+      const snap = await getDoc(doc(db, COL_CONFIG, "app"));
+      if(snap.exists()){
+        const arr = snap.data().statuses;
+        if(Array.isArray(arr) && arr.length){
+          _statusesCache = arr.map(x=>String(x||"").trim()).filter(Boolean);
+          return _statusesCache;
+        }
+      }
+    }catch(e){}
+    _statusesCache = DEFAULT_STATUSES.slice();
+    return _statusesCache;
+  }
+
+  async function ensureStatusesLoaded(){
+    return _statusesCache ? _statusesCache : await loadStatuses();
+  }
+
+  async function saveStatuses(statuses){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Not signed in.");
+    if(!canAdmin(user)) throw new Error("No permission.");
+    const clean = (statuses||[]).map(x=>String(x||"").trim()).filter(Boolean);
+    if(!clean.length) throw new Error("Statuses list is empty.");
+    await setDoc(doc(db, COL_CONFIG, "app"), { statuses: clean, updatedAt: serverTimestamp() }, { merge:true });
+    _statusesCache = clean;
+    return clean;
+  }
+const DEFAULT_ORIGINS = ["NEW","RETURNS","PACKED"]; // PACKED = "EMBALADO"
+  let _originsCache = null;
+
+  async function loadOrigins(){
+    try{
+      const snap = await getDoc(doc(db, COL_CONFIG, "app"));
+      if(snap.exists()){
+        const arr = snap.data().origins;
+        if(Array.isArray(arr) && arr.length) {
+          _originsCache = arr.map(x=>String(x||"").trim()).filter(Boolean);
+          return _originsCache;
+        }
+      }
+    }catch(e){ /* ignore */ }
+    _originsCache = DEFAULT_ORIGINS.slice();
+    return _originsCache;
+  }
+
+  async function ensureOriginsLoaded(){
+    if(_originsCache) return _originsCache;
+    return await loadOrigins();
+  }
+
+  async function saveOrigins(origins){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Not signed in.");
+    if(!isAdminUser(user)) throw new Error("No permission.");
+    const clean = (origins||[]).map(x=>String(x||"").trim()).filter(Boolean);
+    if(clean.length===0) throw new Error("Origins list is empty.");
+    await setDoc(doc(db, COL_CONFIG, "app"), { origins: clean, updatedAt: serverTimestamp() }, { merge:true });
+    _originsCache = clean;
+    return clean;
+  }
+const state = { tab: "operacao", op:"menu", user: null, cache: { products: [], positions: [] } };
 
   // ===== Perfis por domínio =====
-  function emailOfUser(u){ return (u && (u.email || u.providerData?.[0]?.email) || "").toLowerCase().trim(); }
-  function isAdminUser(u){ return emailOfUser(u).endsWith("@admin.com"); }
-  function isWhUser(u){ return emailOfUser(u).endsWith("@wh.com"); }
+  function emailOfUser(u){
+    var e = (u && (u.email || (u.providerData && u.providerData[0] && u.providerData[0].email) ) ) || "";
+    return String(e||"").toLowerCase().trim();
+  }
+  function isAdminUser(u){ return /@admin\.com$/.test(emailOfUser(u)); }
+  function isWhUser(u){ return /@wh\.com$/.test(emailOfUser(u)); }
   function canOperate(u){ return !!u && (isAdminUser(u) || isWhUser(u)); }
   function canAdmin(u){ return !!u && isAdminUser(u); }
 
-  function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  
+  function displayUser(m){
+    return (m.userEmail || m.userLabel || m.userName || m.user || m.userId || "");
+  }
+
+  function statusOptions(list, includeKeep){
+    var arr = (list && list.length) ? list : ["NORMAL","PACKED"];
+    var opt = "";
+    if(includeKeep) opt += '<option value="">(keep)</option>';
+    for(var i=0;i<arr.length;i++){
+      var s = String(arr[i]||"").trim();
+      if(!s) continue;
+      opt += '<option value="'+esc(s)+'">'+esc(s)+'</option>';
+    }
+    return opt;
+  }
+function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function msgBox(html, type=""){ return `<div class="msg ${type}">${html}</div>`; }
   function normalizeBarcode(s){ return (s ?? "").toString().trim(); }
 
@@ -244,6 +403,12 @@
     return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
   }
 
+  // Alias for older handlers
+  function getPositionByCode(code){
+    return getPositionByBarcode(code);
+  }
+
+
   async function upsertProduct({name, barcode}){
     const b = normalizeBarcode(barcode);
     if(!name || !b) throw new Error("Nome e barcode são obrigatórios.");
@@ -251,7 +416,7 @@
   }
   async function upsertPosition({code, barcode}){
     const b = normalizeBarcode(barcode);
-    if(!code || !b) throw new Error("Posição e barcode são obrigatórios.");
+    if(!code || !b) throw new Error("Location e barcode são obrigatórios.");
     await setDoc(doc(db, COL_POSITIONS, encodeKey(b)), { code: code.trim(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
   }
 
@@ -289,8 +454,8 @@
   // ===== Stock ops =====
   async function addStock(positionId, productId, palletBarcode, slotType, deltaUnits, deltaPallets, origin){
     const user = auth.currentUser;
-    if(!user) throw new Error("Sem login.");
-    if(!canOperate(user)) throw new Error("Sem permissões.");
+    if(!user) throw new Error("Not signed in.");
+    if(!canOperate(user)) throw new Error("No permission.");
 
     const palletId = palletIdFromBarcode(palletBarcode);
     const key = stockKey(positionId, productId, palletId);
@@ -300,6 +465,9 @@
     const dU = Number(deltaUnits || 0);
     const dP = Number(deltaPallets || 0);
 
+    // PICKING fica sempre a 0 (guarda palete mas ignora quantidades)
+    const pickingZero = (String(slotType||"").toUpperCase()==="PICKING"); // PICKING_ALWAYS_ZERO
+
     const org = (origin||"").toString().trim().toUpperCase();
 
     await runTransaction(db, async (tx)=>{
@@ -307,13 +475,16 @@
       const curU = snap.exists() ? Number(snap.data().qtyUnits || 0) : 0;
       const curP = snap.exists() ? Number(snap.data().qtyPallets || 0) : 0;
 
-      const nextU = curU + dU;
-      const nextP = curP + dP;
+      let nextU = curU + dU;
+      let nextP = curP + dP;
+      if(pickingZero){ nextU = 0; nextP = 0; }
 
-      if(nextU < 0) throw new Error("Stock insuficiente (UND).");
-      if(nextP < 0) throw new Error("Stock insuficiente (Paletes).");
+      if(!pickingZero){
+        if(nextU < 0) throw new Error("Stock insuficiente (UND).");
+        if(nextP < 0) throw new Error("Stock insuficiente (Pallets).");
+      }
 
-      if(nextU === 0 && nextP === 0){
+      if(nextU === 0 && nextP === 0 && !pickingZero){
         tx.delete(ref);
       }else{
         tx.set(ref, {
@@ -332,29 +503,119 @@
         type: (dU >= 0 || dP >= 0) ? "ARRUMAR" : "RETIRAR",
         ts: serverTimestamp(),
         userId: user.uid,
+        userEmail: (user.email||""),
+        userLabel: ((user.email||"").split("@")[0]||""),
+        userEmail: (user.email||""),
+        userLabel: ((user.email||"").split("@")[0]||""),
         positionId,
         productId,
         palletBarcode: pbc || "",
         slotType: slotType || "PICKING",
         qtyUnits: Math.abs(dU),
         qtyPallets: Math.abs(dP),
+        qtyUnitsApplied: pickingZero ? 0 : Math.abs(dU),
+        qtyPalletsApplied: pickingZero ? 0 : Math.abs(dP),
+        pickingIgnored: pickingZero,
         origin: ((dU>=0 || dP>=0) && (org==="NEW"||org==="RETURNS")) ? org : "",
       });
     });
+  
+
+  async function ensurePickingPallet(positionId, productId, palletBarcode){
+    const palletId = palletIdFromBarcode(palletBarcode);
+    const key = stockKey(positionId, productId, palletId);
+    const ref = doc(db, COL_STOCK, key);
+    const pbc = normalizeBarcode(palletBarcode);
+    await setDoc(ref, {
+      positionId, productId,
+      palletBarcode: pbc || "",
+      slotType: "PICKING",
+      qtyUnits: 0,
+      qtyPallets: 0,
+      updatedAt: serverTimestamp()
+    }, { merge:true });
   }
+
+  async function transferReplenish(fromPositionId, toPositionId, productId, srcPallet, dstPallet, qtyUnits, qtyPallets){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Not signed in.");
+    if(!canOperate(user)) throw new Error("No permission.");
+
+    const srcPbc = normalizeBarcode(srcPallet);
+    const dstPbc = normalizeBarcode(dstPallet);
+    if(!srcPbc) throw new Error("Falta palete de origem.");
+    if(!dstPbc) throw new Error("Falta palete de destino.");
+
+    const srcPid = palletIdFromBarcode(srcPbc);
+    const srcKey = stockKey(fromPositionId, productId, srcPid);
+    const srcRef = doc(db, COL_STOCK, srcKey);
+
+    const qU = Math.floor(Number(qtyUnits||0));
+    const qP = Math.floor(Number(qtyPallets||0));
+    if(!(qU>0 || qP>0)) throw new Error("Falta quantidade.");
+
+    await runTransaction(db, async (tx)=>{
+      const snap = await tx.get(srcRef);
+      if(!snap.exists()) throw new Error("Pallet de origem não existe no stock.");
+      const curU = Number(snap.data().qtyUnits||0);
+      const curP = Number(snap.data().qtyPallets||0);
+
+      const nextU = curU - qU;
+      const nextP = curP - qP;
+      if(nextU < 0) throw new Error("Stock insuficiente (UND).");
+      if(nextP < 0) throw new Error("Stock insuficiente (Pallets).");
+
+      if(nextU===0 && nextP===0){
+        tx.delete(srcRef);
+      }else{
+        tx.set(srcRef, { qtyUnits: nextU, qtyPallets: nextP, updatedAt: serverTimestamp() }, { merge:true });
+      }
+
+      // destino PICKING: manter sempre 0 (só garante que existe a palete na posição)
+      const dstPid = palletIdFromBarcode(dstPbc);
+      const dstKey = stockKey(toPositionId, productId, dstPid);
+      const dstRef = doc(db, COL_STOCK, dstKey);
+      tx.set(dstRef, {
+        positionId: toPositionId, productId,
+        palletBarcode: dstPbc,
+        slotType: "PICKING",
+        qtyUnits: 0, qtyPallets: 0,
+        updatedAt: serverTimestamp()
+      }, { merge:true });
+
+      const mvRef = doc(collection(db, COL_MOVEMENTS));
+      tx.set(mvRef, {
+        type: "REABASTECER",
+        ts: serverTimestamp(),
+        userId: user.uid,
+        userEmail: (user.email||""),
+        userLabel: ((user.email||"").split("@")[0]||""),
+        userEmail: (user.email||""),
+        userLabel: ((user.email||"").split("@")[0]||""),
+        fromPositionId,
+        toPositionId,
+        productId,
+        palletBarcode: srcPbc,
+        destPalletBarcode: dstPbc,
+        qtyUnits: qU,
+        qtyPallets: qP,
+      });
+    });
+  }
+}
 
   async function moveStock(fromPositionId, toPositionId, productId, palletBarcode, units, pallets){
     const user = auth.currentUser;
-    if(!user) throw new Error("Sem login.");
-    if(!canOperate(user)) throw new Error("Sem permissões.");
-    if(fromPositionId === toPositionId) throw new Error("Origem = Destino.");
+    if(!user) throw new Error("Not signed in.");
+    if(!canOperate(user)) throw new Error("No permission.");
+    if(fromPositionId === toPositionId) throw new Error("Origin = Destino.");
 
     const palletId = palletIdFromBarcode(palletBarcode);
     const pbc = normalizeBarcode(palletBarcode);
 
     const u = Number(units || 0);
     const p = Number(pallets || 0);
-    if(u <= 0 && p <= 0) throw new Error("Indica UND e/ou Paletes.");
+    if(u <= 0 && p <= 0) throw new Error("Indica UND e/ou Pallets.");
 
     const fromRef = doc(db, COL_STOCK, stockKey(fromPositionId, productId, palletId));
     const toRef   = doc(db, COL_STOCK, stockKey(toPositionId, productId, palletId));
@@ -364,7 +625,7 @@
       const fromU = fromSnap.exists() ? Number(fromSnap.data().qtyUnits||0) : 0;
       const fromP = fromSnap.exists() ? Number(fromSnap.data().qtyPallets||0) : 0;
       if(fromU < u) throw new Error("Stock insuficiente (UND) na origem.");
-      if(fromP < p) throw new Error("Stock insuficiente (Paletes) na origem.");
+      if(fromP < p) throw new Error("Stock insuficiente (Pallets) na origem.");
       const fromType = fromSnap.exists() ? (fromSnap.data().slotType || "PICKING") : "PICKING";
 
       const toSnap = await tx.get(toRef);
@@ -395,6 +656,10 @@
         type: "MUDAR",
         ts: serverTimestamp(),
         userId: user.uid,
+        userEmail: (user.email||""),
+        userLabel: ((user.email||"").split("@")[0]||""),
+        userEmail: (user.email||""),
+        userLabel: ((user.email||"").split("@")[0]||""),
         fromPositionId,
         toPositionId,
         productId,
@@ -407,14 +672,14 @@
 
   async function moveAllFromPosition(fromPositionId, toPositionId){
     const user = auth.currentUser;
-    if(!user) throw new Error("Sem login.");
-    if(!canOperate(user)) throw new Error("Sem permissões.");
-    if(fromPositionId === toPositionId) throw new Error("Origem = Destino.");
+    if(!user) throw new Error("Not signed in.");
+    if(!canOperate(user)) throw new Error("No permission.");
+    if(fromPositionId === toPositionId) throw new Error("Origin = Destino.");
 
     // "Mover tudo": para todos os stockItems daquela posição (inclui paletes)
     const qy = query(collection(db, COL_STOCK), where("positionId","==", fromPositionId));
     const snap = await getDocs(qy);
-    if(snap.empty) throw new Error("Origem sem stock.");
+    if(snap.empty) throw new Error("Origin sem stock.");
 
     // Nota: batch com leituras para somar destino (simples)
     const batch = writeBatch(db);
@@ -460,10 +725,11 @@
 
     tabsEl.innerHTML = `
       ${showAdmin ? `<button class="tabbtn ${state.tab==="admin"?"active":""}" data-tab="admin">Admin</button>` : ``}
-      <button class="tabbtn ${state.tab==="operacao"?"active":""}" data-tab="operacao">Operação</button>
-      <button class="tabbtn ${state.tab==="consultar"?"active":""}" data-tab="consultar">Consultar</button>
-      <button class="tabbtn ${state.tab==="movimentos"?"active":""}" data-tab="movimentos">Movimentos</button>
-      <button class="tabbtn ${state.tab==="paletes"?"active":""}" data-tab="paletes">Paletes</button>
+      <button class="tabbtn ${state.tab==="operacao"?"active":""}" data-tab="operacao">Operations</button>
+      <button class="tabbtn ${state.tab==="consultar"?"active":""}" data-tab="consultar">Lookup</button>
+      <button class="tabbtn ${state.tab==="stock"?"active":""}" data-tab="stock">Stock</button>
+      <button class="tabbtn ${state.tab==="movimentos"?"active":""}" data-tab="movimentos">Movements</button>
+      <button class="tabbtn ${state.tab==="paletes"?"active":""}" data-tab="paletes">Pallets</button>
     `;
 
     if(!showAdmin && state.tab==="admin") state.tab = "operacao";
@@ -474,7 +740,7 @@
   }
 
   function render(){
-    const u = auth.currentUser;
+const u = auth.currentUser;
 
     if(!u){
       tabsEl.innerHTML = "";
@@ -483,7 +749,7 @@
     }
     if(!canOperate(u)){
       tabsEl.innerHTML = "";
-      viewEl.innerHTML = `<div class="card"><h2 style="margin:0 0 8px">Sem acesso</h2><div class="hint">Usa email <b>@admin.com</b> ou <b>@wh.com</b>.</div></div>`;
+      viewEl.innerHTML = `<div class="card"><h2 style="margin:0 0 8px">No access</h2><div class="hint">Usa email <b>@admin.com</b> ou <b>@wh.com</b>.</div></div>`;
       return;
     }
 
@@ -493,9 +759,10 @@
       if(!canAdmin(u)){ state.tab="operacao"; renderOperacao(); return; }
       renderAdmin(); return;
     }
-    if(state.tab==="consultar"){ renderConsultar(); return; }
-    if(state.tab==="movimentos"){ renderMovimentos(); return; }
-    if(state.tab==="paletes"){ renderPaletes(); return; }
+    if(state.tab==="consultar"){ renderLookup(); return; }
+    if(state.tab==="stock"){ renderStock(); return; }
+    if(state.tab==="movimentos"){ renderMovements(); return; }
+    if(state.tab==="paletes"){ renderPallets(); return; }
     renderOperacao();
   }
 
@@ -510,13 +777,13 @@
     viewEl.innerHTML = `
       <div class="card">
         <h2 style="margin:0 0 8px">Admin</h2>
-        <div class="hint">Produtos/Posições via CSV + editar.</div>
+        <div class="hint">Products/Locations via CSV + editar.</div>
         <div id="adminMsg">${msgBox(`✅ Logado: <span class="mono">${esc(u.uid)}</span>`, "ok")}</div>
       </div>
 
       <div class="grid two" style="margin-top:12px">
         <div class="card">
-          <h2>Produtos</h2>
+          <h2>Products</h2>
           <div class="row">
             <div class="field">
               <label>Upload CSV (A=Produto, B=Barcode)</label>
@@ -527,42 +794,187 @@
             <div class="field"><label>Barcode</label><input id="pBarcode" class="mono" placeholder="Picar/Escrever" /></div>
             <div class="right">
               <button class="btn ok" id="pSave">Guardar</button>
-              <button class="btn ghost" id="pReload">Atualizar</button>
-            <button class="btn ghost" id="pExport">Exportar Produtos (CSV ;)</button>
+              <button class="btn ghost" id="pReload">Refresh</button>
+            <button class="btn ghost" id="pExport">Export Products (CSV ;)</button>
               </div>
           </div>
           <div id="pMsg"></div>
           <div class="divider"></div>
-          <div class="row"><div class="field"><label>Pesquisar</label><input id="pSearch" placeholder="nome ou barcode" /></div></div>
+          <div class="row"><div class="field"><label>Search</label><input id="pSearch" placeholder="nome ou barcode" /></div></div>
           <div style="overflow:auto;max-height:420px;margin-top:10px">
             <table><thead><tr><th>Produto</th><th>Barcode</th><th></th></tr></thead><tbody id="pTable"></tbody></table>
           </div>
         </div>
 
         <div class="card">
-          <h2>Posições</h2>
+          <h2>Locations</h2>
           <div class="row">
             <div class="field">
-              <label>Upload CSV (A=Posição, B=Barcode)</label>
+              <label>Upload CSV (A=Location, B=Barcode)</label>
               <input type="file" id="sCsv" accept=".csv,text/csv" />
               <div class="hint">1ª linha cabeçalho • delimitador <code>,</code> ou <code>;</code></div>
             </div>
-            <div class="field"><label>Posição</label><input id="sCode" placeholder="Ex.: A01-01" /></div>
+            <div class="field"><label>Location</label><input id="sCode" placeholder="Ex.: A01-01" /></div>
             <div class="field"><label>Barcode</label><input id="sBarcode" class="mono" placeholder="Picar/Escrever" /></div>
             <div class="right">
               <button class="btn ok" id="sSave">Guardar</button>
-              <button class="btn ghost" id="sReload">Atualizar</button>
+              <button class="btn ghost" id="sReload">Refresh</button>
             </div>
           </div>
           <div id="sMsg"></div>
           <div class="divider"></div>
-          <div class="row"><div class="field"><label>Pesquisar</label><input id="sSearch" placeholder="posição ou barcode" /></div></div>
+          <div class="row"><div class="field"><label>Search</label><input id="sSearch" placeholder="posição ou barcode" /></div></div>
           <div style="overflow:auto;max-height:420px;margin-top:10px">
-            <table><thead><tr><th>Posição</th><th>Barcode</th><th></th></tr></thead><tbody id="sTable"></tbody></table>
+            <table><thead><tr><th>Location</th><th>Barcode</th><th></th></tr></thead><tbody id="sTable"></tbody></table>
           </div>
+  
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin:0 0 6px">Statuses (pallet)</h3>
+          <div class="hint">Allowed values for <b>Status</b> (applied to pallets).</div>
+
+          <div class="row" style="margin-top:10px;align-items:flex-end">
+            <div class="field" style="flex:1;min-width:240px">
+              <label>Status list (one per line)</label>
+              <textarea id="sList" rows="4" placeholder="NORMAL&#10;PACKED"></textarea>
+            </div>
+            <div style="min-width:200px">
+              <div class="field">
+                <label>Add one</label>
+                <input id="sAdd" placeholder="PACKED" />
+              </div>
+              <div class="row" style="margin-top:8px">
+                <button class="btn ghost" id="sReloadBtn">Reload</button>
+                <button class="btn ghost" id="sAddBtn">Add</button>
+                <button class="btn ok" id="sSaveBtn">Save</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="sMsg" style="margin-top:8px"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin:0 0 6px">Location barcode generator</h3>
+          <div class="hint">Type a location code and generate a barcode to print.</div>
+          <div class="row" style="margin-top:10px;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div class="field" style="min-width:220px;flex:1">
+              <label>Location text</label>
+              <input id="locBarText" placeholder="A01-01-01" />
+            </div>
+            <button class="btn ghost" id="locBarGen">Generate</button>
+            <button class="btn ok" id="locBarPrint">Print</button>
+          </div>
+          <div id="locBarWrap" style="margin-top:10px;display:none">
+            <div class="hint">Preview</div>
+            <div style="padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff;display:inline-block">
+              <div id="locBarLabel" style="font-weight:800;margin-bottom:6px"></div>
+              <svg id="locBarSvg"></svg>
+            </div>
+          </div>
+          <div id="locBarMsg" style="margin-top:8px"></div>
         </div>
       </div>
+      </div>
     `;
+
+
+    // ---- Origins (Admin-managed list) ----
+    // Stored in Firestore: config/app.origins (array of strings)
+    viewEl.insertAdjacentHTML("beforeend", `
+      <div class="card" style="margin-top:12px">
+        <h2>Origins</h2>
+        <div class="hint">Manage origin options here (Admin). Operators can only choose existing values in Operations.</div>
+        <div class="row">
+          <div class="field" style="flex:2">
+            <label>Origins (one per line)</label>
+            <textarea id="oList" rows="6" style="width:100%;min-height:120px" placeholder="NEW\nRETURNS\nPACKED"></textarea>
+            <div class="hint">Tip: keep them short (e.g. <code>PACKED</code>, <code>EMBALADO</code>).</div>
+          </div>
+          <div class="field" style="flex:1">
+            <label>Add origin</label>
+            <input id="oAdd" placeholder="e.g. EMBALADO" />
+            <div class="right" style="margin-top:10px;gap:8px">
+              <button class="btn" id="oAddBtn">Add</button>
+              <button class="btn ghost" id="oReloadBtn">Reload</button>
+              <button class="btn ok" id="oSaveBtn">Save</button>
+            </div>
+          </div>
+        </div>
+        <div id="oMsg"></div>
+      </div>
+    `);
+
+    async function refreshOriginsUI(){
+      try{
+        const list = await ensureOriginsLoaded();
+        $("oList").value = (list||[]).join("\n");
+        $("oMsg").innerHTML = msgBox("✅ Origins loaded.", "ok");
+      }catch(err){
+        $("oMsg").innerHTML = msgBox("Error: "+esc(err.message), "err");
+      }
+    }
+
+    $("oAddBtn").onclick = ()=>{
+      const v = String($("oAdd").value||"").trim();
+      if(!v) return;
+      const lines = String($("oList").value||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+      if(lines.indexOf(v)===-1) lines.push(v);
+      $("oList").value = lines.join("\n");
+      $("oAdd").value = "";
+    };
+    $("oReloadBtn").onclick = ()=>{ _originsCache=null; refreshOriginsUI();
+
+    // Statuses (Admin) handlers
+    const sList = $("sList");
+    const sAdd = $("sAdd");
+    const sAddBtn = $("sAddBtn");
+    const sReloadBtn = $("sReloadBtn");
+    const sSaveBtn = $("sSaveBtn");
+    const sMsg = $("sMsg");
+
+    async function refreshStatusesUI(){
+      try{
+        const statuses = await ensureStatusesLoaded();
+        if(sList) sList.value = statuses.join("\n");
+        if(sMsg) sMsg.innerHTML = msgBox("Loaded.", "ok");
+      }catch(err){
+        if(sMsg) sMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
+      }
+    }
+
+    if(sReloadBtn) sReloadBtn.addEventListener("click", refreshStatusesUI);
+
+    if(sAddBtn) sAddBtn.addEventListener("click", ()=>{
+      const v = String(sAdd ? sAdd.value : "").trim();
+      if(!v) return;
+      const lines = String(sList ? sList.value : "").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+      if(lines.indexOf(v)===-1) lines.push(v);
+      if(sList) sList.value = lines.join("\n");
+      if(sAdd) sAdd.value = "";
+    });
+
+    if(sSaveBtn) sSaveBtn.addEventListener("click", async ()=>{
+      try{
+        const lines = String(sList ? sList.value : "").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+        await saveStatuses(lines);
+        if(sMsg) sMsg.innerHTML = msgBox("Saved.", "ok");
+      }catch(err){
+        if(sMsg) sMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
+      }
+    });
+
+    if(sList) refreshStatusesUI();
+ };
+    $("oSaveBtn").onclick = async ()=>{
+      try{
+        const lines = String($("oList").value||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+        await saveOrigins(lines);
+        $("oMsg").innerHTML = msgBox("✅ Saved.", "ok");
+      }catch(err){
+        $("oMsg").innerHTML = msgBox("Error: "+esc(err.message), "err");
+      }
+    };
+    refreshOriginsUI();
 
     $("pCsv").onchange = async (e)=>{
       const f = e.target.files && e.target.files[0];
@@ -599,7 +1011,7 @@
       try{
         $("pMsg").innerHTML = msgBox("A exportar produtos...", "");
         await exportProductsCSV();
-        $("pMsg").innerHTML = msgBox("✅ Produtos exportados.", "ok");
+        $("pMsg").innerHTML = msgBox("✅ Products exportados.", "ok");
       }catch(err){
         $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err");
       }
@@ -714,7 +1126,7 @@ $("pSearch").oninput = renderProductsTable;
             }else{
               const code = $("sTable").querySelector(`input[data-id="${id}"][data-k="code"]`).value.trim();
               const barcode = normalizeBarcode($("sTable").querySelector(`input[data-id="${id}"][data-k="barcode"]`).value);
-              if(!code || !barcode) throw new Error("Posição e barcode obrigatórios.");
+              if(!code || !barcode) throw new Error("Location e barcode obrigatórios.");
               const newId = encodeKey(barcode);
               await setDoc(doc(db, COL_POSITIONS, newId), {code, barcode, updatedAt:serverTimestamp()}, {merge:true});
               if(newId !== id) await deleteDoc(doc(db, COL_POSITIONS, id));
@@ -727,20 +1139,21 @@ $("pSearch").oninput = renderProductsTable;
     }
   }
 
-  // ===== Operação (mobile simples) =====
+  // ===== Operations (mobile simples) =====
   function renderOperacao(){
     viewEl.innerHTML = `
       <div class="opMobile">
       <div class="card">
-        <h2 style="margin:0 0 8px">Operação</h2>
-        <div class="hint">Arrumar / Mudar / Retirar / Reabastecer. (Consulta está no separador “Consultar”)</div>
+        <h2 style="margin:0 0 8px">Operations</h2>
+        <div class="hint">Put away / Move / Remove / Replenish. (Consulta está no separador “Lookup”)</div>
         <div class="row" style="margin-top:10px">
-          <button class="tabbtn ${state.op==="arrumar"?"active":""}" data-op="arrumar">Arrumar</button>
-          <button class="tabbtn ${state.op==="mudar"?"active":""}" data-op="mudar">Mudar</button>
-          <button class="tabbtn ${state.op==="retirar"?"active":""}" data-op="retirar">Retirar</button>
-          <button class="tabbtn ${state.op==="reabastecer"?"active":""}" data-op="reabastecer">Reabastecer</button>
+          <button class="tabbtn ${state.op==="arrumar"?"active":""}" data-op="arrumar">Put away</button>
+          <button class="tabbtn ${state.op==="mudar"?"active":""}" data-op="mudar">Move</button>
+          <button class="tabbtn ${state.op==="retirar"?"active":""}" data-op="retirar">Remove</button>
+          <button class="tabbtn ${state.op==="reabastecer"?"active":""}" data-op="reabastecer">Replenish</button>
+          <button class="tabbtn ${state.op==="eliminar"?"active":""}" data-op="eliminar">Delete pallet</button>
         </div>
-        <div id="opMsg">${msgBox(`✅ Logado: <span class="mono">${esc(auth.currentUser.uid)}</span>`, "ok")}</div>
+        <div id="opMsg">${msgBox(`✅ Signed in: <span class="mono">${esc(emailOfUser(auth.currentUser) || auth.currentUser.uid)}</span>`, "ok")}</div>
       </div>
       <div id="opView" style="margin-top:12px"></div>
     `;
@@ -755,16 +1168,39 @@ $("pSearch").oninput = renderProductsTable;
   function renderOperacaoBody(){
     const opView = $("opView");
 
+    if(state.op==="menu"){
+      opView.innerHTML = `
+        <div class="card">
+          <h2 style="margin:0 0 8px">Operations</h2>
+          <div class="hint">Escolhe a operação. No telemóvel abre um painel e no fim volta aqui automaticamente.</div>
+          <div class="opMenuGrid" style="margin-top:12px">
+            <div class="opMenuBtn" data-go="arrumar"><div><div class="k">Put away</div><div class="s">Criar nova palete</div></div><div>›</div></div>
+            <div class="opMenuBtn" data-go="mudar"><div><div class="k">Move</div><div class="s">Mover palete inteira</div></div><div>›</div></div>
+            <div class="opMenuBtn" data-go="retirar"><div><div class="k">Remove</div><div class="s">Remove qty de uma palete</div></div><div>›</div></div>
+            <div class="opMenuBtn" data-go="reabastecer"><div><div class="k">Replenish</div><div class="s">Mover qty palete → palete</div></div><div>›</div></div>
+          </div>
+          <div id="opMsg"></div>
+        </div>
+      `;
+      opView.querySelectorAll("[data-go]").forEach(b=>{
+        b.onclick = ()=>{ state.op = b.getAttribute("data-go"); renderOperacao(); };
+      });
+      return;
+    }
+
+    
+
     if(state.op==="arrumar"){
       opView.innerHTML = `
         <div class="card">
-          <h2>Arrumar</h2>
-          <div class="hint">POSIÇÃO → PRODUTO → (tipo/origem/palete) → QTD</div>
+          <div class="opTopbar"><button class="opBack" id="opBackBtn">←</button><div style="font-weight:800">Put away</div></div>
+          <h2>Put away (Nova Pallet)</h2>
+          <div class="hint">Criar uma palete nova: POSIÇÃO → PRODUTO → GERAR/PLICAR PALETE → QTD</div>
 
           <div class="step">
             <div class="n">1</div>
             <div style="flex:1">
-              <div class="t">Posição</div>
+              <div class="t">Location</div>
               <div class="row" style="margin-top:8px">
                 <div class="field">
                   <label>POSIÇÃO</label>
@@ -792,30 +1228,39 @@ $("pSearch").oninput = renderProductsTable;
           <div class="step">
             <div class="n">3</div>
             <div style="flex:1">
-              <div class="t">Detalhes + Quantidade</div>
+              <div class="t">Pallet + Quantity</div>
 
               <div class="row" style="margin-top:8px">
                 <div class="field">
                   <label>TIPO</label>
                   <select id="aType" disabled>
+                    <option value="COMPLETA" selected>COMPLETA</option>
                     <option value="PICKING">PICKING</option>
-                    <option value="COMPLETA">COMPLETA</option>
                   </select>
                 </div>
                 <div class="field">
-                  <label>ORIGEM</label>
+                  <label>ORIGIN</label>
                   <select id="aOrigin" disabled>
-                    <option value="" selected>Selecionar…</option>
-                    <option value="NEW">NEW</option>
+                    <option value="NEW" selected>NEW</option>
                     <option value="RETURNS">RETURNS</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>STATUS (optional)</label>
+                  <select id="aStatus" disabled>
+                    <option value="" selected>(keep)</option>
                   </select>
                 </div>
               </div>
 
               <div class="row" style="margin-top:8px">
                 <div class="field">
-                  <label>PALETE (opcional)</label>
-                  <input id="aPal" class="mono" placeholder="Pica a palete (opcional)..." disabled />
+                  <label>PALETE (nova)</label>
+                  <input id="aPal" class="mono" placeholder="Gerar ou pica a palete..." disabled />
+                  <div class="right" style="margin-top:8px">
+                    <button class="btn ghost" id="aGenPal" disabled>Gerar</button>
+                    <button class="btn ghost" id="aPrintPal" disabled>Imprimir</button>
+                  </div>
                 </div>
               </div>
 
@@ -831,8 +1276,8 @@ $("pSearch").oninput = renderProductsTable;
               </div>
 
               <div class="right" style="margin-top:10px">
-                <button class="btn ghost" id="aClear">Limpar</button>
-                <button class="btn ok" id="aOk" disabled>Confirmar</button>
+                <button class="btn ghost" id="aClear">Clear</button>
+                <button class="btn ok" id="aOk" disabled>Criar</button>
               </div>
 
               <div id="aMsg"></div>
@@ -846,18 +1291,32 @@ $("pSearch").oninput = renderProductsTable;
     if(state.op==="retirar"){
       opView.innerHTML = `
         <div class="card">
-          <h2>Retirar</h2>
-          <div class="hint">POSIÇÃO → PRODUTO → (palete opcional) → QTD</div>
+          <div class="opTopbar"><button class="opBack" id="opBackBtn">←</button><div style="font-weight:800">Remove</div></div>
+          <h2>Remove (de uma Pallet)</h2>
+          <div class="hint">PALETE → QTD a retirar</div>
 
           <div class="step">
             <div class="n">1</div>
             <div style="flex:1">
-              <div class="t">Posição</div>
+              <div class="t">Pallet</div>
               <div class="row" style="margin-top:8px">
                 <div class="field">
-                  <label>POSIÇÃO</label>
-                  <input id="rPos" class="mono" placeholder="Pica a posição..." />
-                  <div class="hint" id="rPosInfo"></div>
+                  <label>PALETE</label>
+                  <input id="rPal" class="mono" placeholder="Pica a palete..." />
+                  <div class="hint" id="rPalInfo"></div>
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>ORIGEM (auto)</label>
+                  <input id="rPos" class="mono" placeholder="Origin..." disabled />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PRODUTO (auto)</label>
+                  <input id="rProd" class="mono" placeholder="Produto..." disabled />
                 </div>
               </div>
             </div>
@@ -866,43 +1325,31 @@ $("pSearch").oninput = renderProductsTable;
           <div class="step">
             <div class="n">2</div>
             <div style="flex:1">
-              <div class="t">Produto</div>
+              <div class="t">Quantity</div>
               <div class="row" style="margin-top:8px">
                 <div class="field">
-                  <label>PRODUTO</label>
-                  <input id="rProd" class="mono" placeholder="Pica o produto..." disabled />
-                  <div class="hint" id="rProdInfo"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="step">
-            <div class="n">3</div>
-            <div style="flex:1">
-              <div class="t">Palete (opcional) + Quantidade</div>
-              <div class="row" style="margin-top:8px">
-                <div class="field">
-                  <label>PALETE (opcional)</label>
-                  <input id="rPal" class="mono" placeholder="Pica a palete (opcional)..." disabled />
-                  <div class="hint" id="rPalInfo"></div>
-                </div>
-              </div>
-
-              <div class="row" style="margin-top:8px">
-                <div class="field">
-                  <label>UND</label>
+                  <label>UNITS</label>
                   <input id="rQtyU" type="number" min="0" step="1" placeholder="0" disabled />
                 </div>
                 <div class="field">
-                  <label>PALETES</label>
+                  <label>PALLETS</label>
                   <input id="rQtyP" type="number" min="0" step="1" placeholder="0" disabled />
                 </div>
               </div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>STATUS (optional)</label>
+                  <select id="rStatus" disabled><option value="" selected>(keep)</option></select>
+                </div>
+              </div>
+
+              <!-- manter compat -->
+              <button id="rOk" style="display:none"></button>
+              <button id="rClear" style="display:none"></button>
 
               <div class="right" style="margin-top:10px">
-                <button class="btn ghost" id="rClear">Limpar</button>
-                <button class="btn ok" id="rOk" disabled>Confirmar</button>
+                <button class="btn ghost" id="rClear2">Clear</button>
+                <button class="btn ok" id="rDo" disabled>Remove</button>
               </div>
 
               <div id="rMsg"></div>
@@ -910,31 +1357,37 @@ $("pSearch").oninput = renderProductsTable;
           </div>
         </div>
 `;
-      setupRetirar();
+      setupRemove();
     }
 
     if(state.op==="mudar"){
       opView.innerHTML = `
         <div class="card">
-          <h2>Mudar</h2>
-          <div class="hint">ORIGEM → DESTINO → (produto/palete) → QTD</div>
+          <div class="opTopbar"><button class="opBack" id="opBackBtn">←</button><div style="font-weight:800">Move</div></div>
+          <h2>Move (Mover Pallet)</h2>
+          <div class="hint">Mover a palete inteira: PALETE → DESTINO</div>
 
           <div class="step">
             <div class="n">1</div>
             <div style="flex:1">
-              <div class="t">Origem & Destino</div>
+              <div class="t">Pallet</div>
               <div class="row" style="margin-top:8px">
                 <div class="field">
-                  <label>ORIGEM</label>
-                  <input id="mFrom" class="mono" placeholder="Pica a origem..." />
-                  <div class="hint" id="mFromInfo"></div>
+                  <label>PALETE</label>
+                  <input id="mPal" class="mono" placeholder="Pica a palete..." />
+                  <div class="hint" id="mPalInfo"></div>
                 </div>
               </div>
               <div class="row" style="margin-top:8px">
                 <div class="field">
-                  <label>DESTINO</label>
-                  <input id="mTo" class="mono" placeholder="Pica o destino..." disabled />
-                  <div class="hint" id="mToInfo"></div>
+                  <label>ORIGEM (auto)</label>
+                  <input id="mFrom" class="mono" placeholder="Origin..." disabled />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PRODUTO (auto)</label>
+                  <input id="mProd" class="mono" placeholder="Produto..." disabled />
                 </div>
               </div>
             </div>
@@ -943,43 +1396,29 @@ $("pSearch").oninput = renderProductsTable;
           <div class="step">
             <div class="n">2</div>
             <div style="flex:1">
-              <div class="t">Produto / Palete (opcional)</div>
+              <div class="t">Destino</div>
               <div class="row" style="margin-top:8px">
                 <div class="field">
-                  <label>PRODUTO</label>
-                  <input id="mProd" class="mono" placeholder="Pica o produto..." disabled />
-                  <div class="hint" id="mProdInfo"></div>
+                  <label>DESTINATION</label>
+                  <input id="mTo" class="mono" placeholder="Scan destination..." disabled />
+                  <div class="hint" id="mToInfo"></div>
                 </div>
-              </div>
-              <div class="row" style="margin-top:8px">
                 <div class="field">
-                  <label>PALETE (opcional)</label>
-                  <input id="mPal" class="mono" placeholder="Pica a palete (opcional)..." disabled />
-                  <div class="hint" id="mPalInfo"></div>
+                  <label>STATUS (optional)</label>
+                  <select id="mStatus" disabled><option value="" selected>(keep)</option></select>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div class="step">
-            <div class="n">3</div>
-            <div style="flex:1">
-              <div class="t">Quantidade</div>
-              <div class="row" style="margin-top:8px">
-                <div class="field">
-                  <label>UND</label>
-                  <input id="mQtyU" type="number" min="0" step="1" placeholder="0" disabled />
-                </div>
-                <div class="field">
-                  <label>PALETES</label>
-                  <input id="mQtyP" type="number" min="0" step="1" placeholder="0" disabled />
-                </div>
-              </div>
+              <!-- manter inputs escondidos p/ compatibilidade -->
+              <input id="mQtyU" type="number" style="display:none" />
+              <input id="mQtyP" type="number" style="display:none" />
+              <button id="mAll" style="display:none"></button>
+              <button id="mOk" style="display:none"></button>
+              <button id="mClear" style="display:none"></button>
 
               <div class="right" style="margin-top:10px">
-                <button class="btn ghost" id="mClear">Limpar</button>
-                <button class="btn ghost" id="mAll" disabled>TUDO</button>
-                <button class="btn ok" id="mOk" disabled>Confirmar</button>
+                <button class="btn ghost" id="mClear2">Clear</button>
+                <button class="btn ok" id="mMove" disabled>Mover</button>
               </div>
 
               <div id="mMsg"></div>
@@ -987,19 +1426,20 @@ $("pSearch").oninput = renderProductsTable;
           </div>
         </div>
 `;
-      setupMudar();
+      setupMove();
     }
 
     if(state.op==="reabastecer"){
       opView.innerHTML = `
         <div class="card">
-          <h2>Reabastecer (COMPLETA → PICKING)</h2>
-          <div class="hint">Fluxo simples: <b>Origem</b> → <b>Destino</b> → <b>Quantidade</b>.</div>
+          <div class="opTopbar"><button class="opBack" id="opBackBtn">←</button><div style="font-weight:800">Replenish</div></div>
+          <h2>Replenish (Pallet → Pallet)</h2>
+          <div class="hint">Remove quantidade de uma palete e colocar noutra palete (normalmente para PICKING).</div>
 
           <div class="step">
             <div class="n">1</div>
             <div style="flex:1">
-              <div class="t">Origem</div>
+              <div class="t">Origin</div>
               <div class="row" style="margin-top:8px">
                 <div class="field">
                   <label>PALETE ORIGEM (se tiver)</label>
@@ -1053,21 +1493,27 @@ $("pSearch").oninput = renderProductsTable;
           <div class="step">
             <div class="n">3</div>
             <div style="flex:1">
-              <div class="t">Quantidade</div>
+              <div class="t">Quantity</div>
               <div class="row" style="margin-top:8px">
                 <div class="field">
-                  <label>UND</label>
+                  <label>UNITS</label>
                   <input id="rpQtyU" type="number" min="0" step="1" placeholder="0" disabled />
                 </div>
                 <div class="field">
-                  <label>PALETES</label>
+                  <label>PALLETS</label>
                   <input id="rpQtyP" type="number" min="0" step="1" placeholder="0" disabled />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>ORIGIN STATUS (optional)</label>
+                  <select id="roStatus" disabled><option value="" selected>(keep)</option></select>
                 </div>
               </div>
 
               <div class="right" style="margin-top:10px">
-                <button class="btn ghost" id="rpClear">Limpar</button>
-                <button class="btn ok" id="rpOk" disabled>Confirmar</button>
+                <button class="btn ghost" id="rpClear">Clear</button>
+                <button class="btn ok" id="rpOk" disabled>Confirm</button>
               </div>
 
               <div id="rpMsg"></div>
@@ -1075,13 +1521,62 @@ $("pSearch").oninput = renderProductsTable;
           </div>
         </div>
 `;
-      setupReabastecer();
+      setupReplenish();
     }
+
+    if(state.op==="eliminar"){
+      opView.innerHTML = `
+        <div class="card">
+          <div class="opTopbar"><button class="opBack" id="opBackBtn">←</button><div style="font-weight:800">Delete pallet</div></div>
+          <div class="hint">Apaga a palete do stock (onde estiver). Fica registo em Movements.</div>
+
+          <div class="step">
+            <div class="n">1</div>
+            <div style="flex:1">
+              <div class="t">Pallet</div>
+              <div class="row" style="margin-top:8px">
+                <div class="field">
+                  <label>PALETE</label>
+                  <input id="ePal" class="mono" placeholder="Pica a palete..." />
+                  <div class="hint" id="eInfo"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="n">2</div>
+            <div style="flex:1">
+              <div class="t">Confirm</div>
+              <div class="hint">Vai apagar todas as linhas dessa palete (se existir em mais do que uma posição/produto).</div>
+
+              <div class="right" style="margin-top:10px">
+                <button class="btn ghost" id="eClear">Clear</button>
+                <button class="btn ok" id="eDel" disabled>Eliminar</button>
+              </div>
+
+              <div id="eMsg"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      setupEliminarPallet();
+      return;
+    }
+
 
   }
 
   function setupArrumar(){
-    const aPos=$("aPos"), aProd=$("aProd"), aPal=$("aPal"), aType=$("aType"), aOrigin=$("aOrigin"), aQtyU=$("aQtyU"), aQtyP=$("aQtyP"), aOk=$("aOk"), aClear=$("aClear");
+    async function populateOpStatuses(){
+      const statuses = await ensureStatusesLoaded();
+      var el = $("aStatus"); if(el){{ el.innerHTML = statusOptions(statuses, true); }}
+    }
+    populateOpStatuses();
+
+    const opBack = document.getElementById("opBackBtn");
+    if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
+    const aPos=$("aPos"), aProd=$("aProd"), aPal=$("aPal"), aType=$("aType"), aOrigin=$("aOrigin"), aStatus=$("aStatus"), aQtyU=$("aQtyU"), aQtyP=$("aQtyP"), aOk=$("aOk"), aClear=$("aClear");
     const aMsg=$("aMsg"), aPosInfo=$("aPosInfo"), aProdInfo=$("aProdInfo");
     let pos=null, prod=null;
 
@@ -1100,8 +1595,10 @@ $("pSearch").oninput = renderProductsTable;
     aPos.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDefault();
       try{
         pos = await getPositionByBarcode(aPos.value);
-        if(!pos) throw new Error("Posição não encontrada.");
+        if(!pos) throw new Error("Location não encontrada.");
         aPosInfo.textContent = "✅ " + (pos.code||"");
+        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
+
         aProd.disabled=false; aProd.focus(); aMsg.innerHTML="";
       }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
     }});
@@ -1110,7 +1607,11 @@ $("pSearch").oninput = renderProductsTable;
         prod = await getProductByBarcode(aProd.value);
         if(!prod) throw new Error("Produto não encontrado.");
         aProdInfo.textContent = "✅ " + (prod.name||"");
-        aPal.disabled=false; aType.disabled=false; aOrigin.disabled=false; aQtyU.disabled=false; aQtyP.disabled=false;
+        aPal.disabled=false; aType.disabled=false; aOrigin.disabled=false;
+      var _as=$("aStatus"); if(_as) _as.disabled=false; aQtyU.disabled=false; aQtyP.disabled=false;
+      aPal.disabled=false;
+      if(aGenPal) aGenPal.disabled=false;
+      if(aPrintPal) aPrintPal.disabled = !(normalizeBarcode(aPal.value));
         aPal.focus(); aMsg.innerHTML="";
         enable();
       }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
@@ -1121,13 +1622,16 @@ $("pSearch").oninput = renderProductsTable;
     aQtyP.addEventListener("input", enable);
     aQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); aOk.click(); }});
     aQtyP.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); aOk.click(); }});
-    aOk.onclick = async ()=>{
+    if(aGenPal){ aGenPal.onclick = ()=>{ aPal.value = generatePalletCode(); if(aPrintPal) aPrintPal.disabled=false; enable(); }; }
+if(aPrintPal){ aPrintPal.onclick = ()=>{ const code = normalizeBarcode(aPal.value); if(!code){ aMsg.innerHTML = msgBox("Gera ou pica uma PALETE.", "warn"); return; } printPalletLabel({code, title:"PALETE", subtitle:`${aPos.value||""} • ${aProd.value||""}`}); }; }
+
+aOk.onclick = async ()=>{
       try{
         const qtyU=Math.floor(Number(aQtyU.value||0));
         const qtyP=Math.floor(Number(aQtyP.value||0));
         const origin=(aOrigin.value||"").trim();
         if(!(origin==="NEW" || origin==="RETURNS")) throw new Error("Seleciona a ORIGEM (NEW/RETURNS).");
-        if(!(pos && prod && (qtyU>0 || qtyP>0))) throw new Error("Falta QTD (UND e/ou Paletes).");
+        if(!(pos && prod && (qtyU>0 || qtyP>0))) throw new Error("Falta QTD (UND e/ou Pallets).");
         await addStock(pos.id, prod.id, aPal.value, aType.value, qtyU, qtyP, origin);
         aMsg.innerHTML = msgBox(`✅ OK • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(aType.value)} • ${esc(origin)} • +${qtyU} UND • +${qtyP} Pal`, "ok");
         // manter posição/produto para repetir
@@ -1138,7 +1642,24 @@ $("pSearch").oninput = renderProductsTable;
     };
 
     aClear.onclick = reset;
-    reset();
+    
+    async function populateOrigins(){
+      const origins = await ensureOriginsLoaded();
+      if(aOrigin){
+        aOrigin.innerHTML = origins.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("");
+      }
+    }
+
+    async function populateStatuses(){
+      const statuses = await ensureStatusesLoaded();
+      if(aStatus){
+        aStatus.innerHTML = statuses.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+      }
+    }
+
+reset();
+    populateOrigins();
+    populateStatuses();
   }
 
   
@@ -1200,163 +1721,112 @@ $("pSearch").oninput = renderProductsTable;
   }
 
 
-function setupRetirar(){
-    const rPos=$("rPos"), rProd=$("rProd"), rPal=$("rPal"), rQtyU=$("rQtyU"), rQtyP=$("rQtyP"), rOk=$("rOk"), rClear=$("rClear");
-    const rMsg=$("rMsg");
+function setupRemove(){
+    const opBack = document.getElementById("opBackBtn");
+    if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
+    const rPos=$("rPos"), rProd=$("rProd"), rPal=$("rPal"), rQtyU=$("rQtyU"), rQtyP=$("rQtyP");
+    const rDo=$("rDo"), rClear2=$("rClear2");
+    const rMsg=$("rMsg"), rPalInfo=$("rPalInfo");
 
-    let pos=null, prod=null, pal=null;
-
-    // ===== Modo A: Sem palete (como antes) -> posição -> produto -> qty
-    async function handlePosEnter(){
-      const code = normalizeBarcode(rPos.value);
-      const p = await getPositionByCode(code);
-      if(!p){ rMsg.innerHTML = msgBox("Posição não encontrada.", "err"); return; }
-      pos = p;
-      rMsg.innerHTML = msgBox(`Posição OK: <b>${esc(pos.code)}</b>`, "ok");
-      rProd.disabled = false;
-      rProd.focus();
-    }
-    async function handleProdEnter(){
-      const bc = normalizeBarcode(rProd.value);
-      const p = await getProductByBarcode(bc);
-      if(!p){ rMsg.innerHTML = msgBox("Produto não encontrado.", "err"); return; }
-      prod = p;
-      rMsg.innerHTML = msgBox(`Produto OK: <b>${esc(prod.name)}</b>`, "ok");
-      rQtyU.disabled=false; rQtyP.disabled=false;
-      rQtyU.focus();
-      enable();
-    }
-
-    // ===== Modo B: Com palete -> palete -> resolve origem+produto -> qty
-    function setResolved(res){
-      pos = res.position;
-      prod = res.product;
-      pal = res.pbc;
-
-      rPos.value = pos.code || "";
-      rProd.value = prod.barcode || "";
-      rPal.value = pal || "";
-
-      // bloquear origem/produto (vêm da palete)
-      rPos.disabled = true;
-      rProd.disabled = true;
-
-      rQtyU.disabled=false; rQtyP.disabled=false;
-      rQtyU.focus();
-
-      rMsg.innerHTML = msgBox(`Palete OK • Origem: <b>${esc(pos.code)}</b> • Produto: <b>${esc(prod.name)}</b>`, "ok");
-      enable();
-    }
+    let pos=null, prod=null, pal=null, stock=null;
 
     function reset(){
-      pos=prod=pal=null;
-      rPos.value=""; rProd.value=""; rPal.value=""; rQtyU.value=""; rQtyP.value="";
-      // dual: pode começar por palete OU por posição
-      rPal.disabled = false;
-      rPos.disabled = false;
-      rProd.disabled = true;
-      rQtyU.disabled = true;
-      rQtyP.disabled = true;
-      rOk.disabled = true;
-      rMsg.innerHTML = msgBox('Escolhe um método: <b>pica PALETE</b> (se tiver código) ou <b>pica POSIÇÃO</b> (se não tiver).', "warn");
+      pos=prod=pal=stock=null;
+      rPal.value=""; rPos.value=""; rProd.value="";
+      rQtyU.value=""; rQtyP.value="";
+      rQtyU.disabled=true; rQtyP.disabled=true;
+      rDo.disabled=true;
+      if(rPalInfo) rPalInfo.textContent="";
+      rMsg.innerHTML = msgBox("Pica a PALETE para carregar origem/produto.", "warn");
       rPal.focus();
     }
     reset();
-    rClear.onclick = reset;
-
-    rPal.addEventListener("keydown", async (e)=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        const code = normalizeBarcode(rPal.value);
-        if(!code){
-          // sem palete -> usar fluxo antigo
-          rMsg.innerHTML = msgBox("Sem código de palete: usa POSIÇÃO → PRODUTO.", "warn");
-          rPos.focus();
-          return;
-        }
-
-        const res = await resolvePalletGlobal(code);
-        if(res.ok){ setResolved(res); return; }
-
-        if(res.reason==="multiplo"){
-          const rows = res.rows || [];
-          rMsg.innerHTML = `
-            <div class="msg warn">
-              Esta palete existe em mais do que uma linha. Escolhe:
-              <div style="margin-top:8px;display:grid;gap:8px">
-                ${rows.map((x,i)=>`
-                  <button class="btn ghost" data-choice="${i}">
-                    ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
-                  </button>
-                `).join("")}
-              </div>
-            </div>`;
-          rMsg.querySelectorAll("[data-choice]").forEach(btn=>{
-            btn.onclick = ()=>{
-              const i = Number(btn.getAttribute("data-choice"));
-              setResolved({ pbc: res.pbc, ...rows[i] });
-            };
-          });
-          return;
-        }
-
-        rMsg.innerHTML = msgBox("Palete não encontrada. Se esta palete não tiver código, usa POSIÇÃO → PRODUTO.", "err");
-        rPos.focus();
-      }
-    });
-
-    rPos.addEventListener("keydown", async (e)=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        if(pal){ return; } // já estamos em modo palete
-        if(!rPos.value){ rMsg.innerHTML = msgBox("Pica a POSIÇÃO.", "warn"); return; }
-        await handlePosEnter();
-        enable();
-      }
-    });
-
-    rProd.addEventListener("keydown", async (e)=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        if(pal){ return; } // em modo palete produto é auto
-        if(!(pos)){ rMsg.innerHTML = msgBox("Primeiro pica a POSIÇÃO.", "warn"); return; }
-        await handleProdEnter();
-        enable();
-      }
-    });
+    if(rClear2) rClear2.onclick = reset;
 
     function enable(){
       const u=Math.floor(Number(rQtyU.value||0));
       const p=Math.floor(Number(rQtyP.value||0));
-      rOk.disabled = !(pos && prod && (u>0 || p>0));
+      rDo.disabled = !(pos && prod && pal && (u>0 || p>0));
     }
     rQtyU.addEventListener("input", enable);
     rQtyP.addEventListener("input", enable);
-    rQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); rOk.click(); }});
-    rQtyP.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); rOk.click(); }});
 
-    rOk.onclick = async ()=>{
+    async function resolvePal(){
+      const code = normalizeBarcode(rPal.value);
+      if(!code){ rMsg.innerHTML = msgBox("Pica a PALETE.", "warn"); return; }
+      const res = await resolvePalletGlobal(code);
+      if(res.ok){
+        pal = res.pbc;
+        pos = res.position;
+        prod = res.product;
+        stock = res.stock || {};
+        rPos.value = pos.code || "";
+        rProd.value = prod.barcode || "";
+        rQtyU.disabled=false;
+      var _rs=$("rStatus"); if(_rs) _rs.disabled=false; rQtyP.disabled=false;
+        rQtyU.focus();
+        if(rPalInfo) rPalInfo.innerHTML = `Origin: <b>${esc(pos.code)}</b> • ${esc(prod.name)} • UND ${Number(stock.qtyUnits||0)} • Pal ${Number(stock.qtyPallets||0)}`;
+        rMsg.innerHTML = msgBox("Agora indica a quantidade a retirar.", "ok");
+        enable();
+        return;
+      }
+      if(res.reason==="multiplo"){
+        const rows = res.rows || [];
+        rMsg.innerHTML = `
+          <div class="msg warn">
+            Esta palete aparece em várias linhas. Escolhe:
+            <div style="margin-top:8px;display:grid;gap:8px">
+              ${rows.map((x,i)=>`
+                <button class="btn ghost" data-choice="${i}">
+                  ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
+                </button>
+              `).join("")}
+            </div>
+          </div>`;
+        rMsg.querySelectorAll("[data-choice]").forEach(btn=>{
+          btn.onclick = ()=>{
+            const i = Number(btn.getAttribute("data-choice"));
+            const pick = rows[i];
+            pal = res.pbc;
+            pos = pick.position;
+            prod = pick.product;
+            stock = pick.stock || {};
+            rPos.value = pos.code || "";
+            rProd.value = prod.barcode || "";
+            rQtyU.disabled=false; rQtyP.disabled=false;
+            rQtyU.focus();
+            if(rPalInfo) rPalInfo.innerHTML = `Origin: <b>${esc(pos.code)}</b> • ${esc(prod.name)}`;
+            rMsg.innerHTML = msgBox("Agora indica a quantidade a retirar.", "ok");
+            enable();
+          };
+        });
+        return;
+      }
+      rMsg.innerHTML = msgBox("Pallet não encontrada no stock.", "err");
+    }
+
+    rPal.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
+
+    rDo.onclick = async ()=>{
       try{
-        if(!pos) throw new Error("Falta POSIÇÃO (ou PALETE).");
-        if(!prod) throw new Error("Falta PRODUTO.");
+        if(!(pos && prod && pal)) throw new Error("Falta palete.");
         const qtyU=Math.floor(Number(rQtyU.value||0));
         const qtyP=Math.floor(Number(rQtyP.value||0));
-        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD (UND e/ou Paletes).");
+        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD.");
+        await addStock(pos.id, prod.id, pal, (stock.slotType||"PICKING"), -qtyU, -qtyP);
+        rMsg.innerHTML = msgBox(`✅ RETIRADO • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(pal)} • -${qtyU} UND • -${qtyP} Pal`, "ok");
+        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
 
-        const palletToUse = pal ? pal : (rPal.value || "");
-        await addStock(pos.id, prod.id, palletToUse, "PICKING", -qtyU, -qtyP);
-
-        rMsg.innerHTML = msgBox(`✅ RETIRADO • ${esc(pos.code)} • ${esc(prod.name)} • ${palletToUse?esc(palletToUse):"—"} • -${qtyU} UND • -${qtyP} Pal`, "ok");
-        rQtyU.value=""; rQtyP.value="";
-        rQtyU.focus();
-        enable();
+        reset();
       }catch(err){
         rMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
       }
     };
   }
 
-  function setupReabastecer(){
+  function setupReplenish(){
+    const opBack = document.getElementById("opBackBtn");
+    if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
     const rpPal=$("rpPal"), rpManual=$("rpManual"), rpManualBox=$("rpManualBox"),
           rpFrom=$("rpFrom"), rpProd=$("rpProd"),
           rpTo=$("rpTo"), rpToPal=$("rpToPal"),
@@ -1418,7 +1888,7 @@ function setupRetirar(){
     }
 
     // ===== ORIGEM via PALETE
-    async function resolveOrigemByPalete(code){
+    async function resolveOriginByPallet(code){
       const res = await resolvePalletGlobal(code);
       if(res.ok){
         palFrom = res.pbc;
@@ -1433,10 +1903,10 @@ function setupRetirar(){
         if(rpProd) rpProd.disabled = true;
 
         const s = res.stock || {};
-        if(rpPalInfo) rpPalInfo.innerHTML = `Origem: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • UND ${Number(s.qtyUnits||0)} • Pal ${Number(s.qtyPallets||0)}`;
+        if(rpPalInfo) rpPalInfo.innerHTML = `Origin: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • UND ${Number(s.qtyUnits||0)} • Pal ${Number(s.qtyPallets||0)}`;
 
         unlockDestino();
-        setMsg("Origem OK. Agora (opcional) pica PALETE DESTINO e depois POSIÇÃO DESTINO.", "ok");
+        setMsg("Origin OK. Agora (opcional) pica PALETE DESTINO e depois POSIÇÃO DESTINO.", "ok");
         return true;
       }
 
@@ -1444,7 +1914,7 @@ function setupRetirar(){
         const rows = res.rows || [];
         rpMsg.innerHTML = `
           <div class="msg warn">
-            Palete origem aparece em várias linhas. Escolhe:
+            Pallet origem aparece em várias linhas. Escolhe:
             <div style="margin-top:8px;display:grid;gap:8px">
               ${rows.map((x,i)=>`
                 <button class="btn ghost" data-choice="${i}">
@@ -1468,20 +1938,20 @@ function setupRetirar(){
             if(rpFrom) rpFrom.disabled = true;
             if(rpProd) rpProd.disabled = true;
 
-            if(rpPalInfo) rpPalInfo.innerHTML = `Origem: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)}`;
+            if(rpPalInfo) rpPalInfo.innerHTML = `Origin: <b>${esc(fromPos.code)}</b> • ${esc(prod.name)}`;
             unlockDestino();
-            setMsg("Origem OK. Agora (opcional) pica PALETE DESTINO e depois POSIÇÃO DESTINO.", "ok");
+            setMsg("Origin OK. Agora (opcional) pica PALETE DESTINO e depois POSIÇÃO DESTINO.", "ok");
           };
         });
         return false;
       }
 
-      setMsg("Palete origem não encontrada. Se não tiver código, ativa “Sem código de palete”.", "err");
+      setMsg("Pallet origem não encontrada. Se não tiver código, ativa “Sem código de palete”.", "err");
       return false;
     }
 
     // ===== DESTINO via PALETE (opcional): se existir, valida produto e pode auto-definir posição
-    async function handleDestinoPalete(code){
+    async function handleDestinoPallet(code){
       const res = await resolvePalletGlobal(code);
       if(res.ok){
         if(res.product && res.product.id && prod && res.product.id !== prod.id){
@@ -1555,7 +2025,7 @@ function setupRetirar(){
       if(rpManual && rpManual.checked) return;
       const code = normalizeBarcode(rpPal.value);
       if(!code){ setMsg("Pica a palete origem.", "warn"); return; }
-      await resolveOrigemByPalete(code);
+      await resolveOriginByPallet(code);
     });
 
     // manual origin
@@ -1566,10 +2036,10 @@ function setupRetirar(){
         if(!(rpManual && rpManual.checked)) return;
         const code = normalizeBarcode(rpFrom.value);
         const p = await getPositionByCode(code);
-        if(!p){ setMsg("Origem não encontrada.", "err"); return; }
+        if(!p){ setMsg("Origin não encontrada.", "err"); return; }
         fromPos = p;
         if(rpProd){ rpProd.disabled = false; rpProd.focus(); }
-        setMsg("Origem OK. Agora pica o produto.", "ok");
+        setMsg("Origin OK. Agora pica o produto.", "ok");
       });
     }
 
@@ -1603,7 +2073,7 @@ function setupRetirar(){
         setMsg("Pica a posição destino.", "warn");
         return;
       }
-      await handleDestinoPalete(code);
+      await handleDestinoPallet(code);
     });
 
     // destino posição
@@ -1634,10 +2104,11 @@ function setupRetirar(){
         const srcPallet = palFrom ? palFrom : (rpPal.value || "");
         const dstPallet = palTo ? palTo : (rpToPal.value || "");
 
-        await addStock(fromPos.id, prod.id, srcPallet, fromSlotType || "COMPLETA", -qtyU, -qtyP);
-        await addStock(toPos.id, prod.id, dstPallet, "PICKING", qtyU, qtyP);
+        await transferReplenish(fromPos.id, toPos.id, prod.id, srcPallet, dstPallet, qtyU, qtyP);
 
         setMsg(`✅ Reabastecido • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${qtyU} UND • ${qtyP} Pal`, "ok");
+        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
+
         rpQtyU.value=""; rpQtyP.value="";
         rpQtyU.focus();
         enable();
@@ -1649,211 +2120,250 @@ function setupRetirar(){
     reset();
   }
 
+  async function loadPositionById(id){
+    const snap = await getDoc(doc(db, COL_POSITIONS, id));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
+  }
+  async function loadProductById(id){
+    const snap = await getDoc(doc(db, COL_PRODUCTS, id));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
+  }
 
-  function setupMudar(){
-    const mFrom=$("mFrom"), mTo=$("mTo"), mProd=$("mProd"), mPal=$("mPal"), mQtyU=$("mQtyU"), mQtyP=$("mQtyP"), mAll=$("mAll"), mOk=$("mOk"), mClear=$("mClear");
-    const mMsg=$("mMsg");
+  async function listStockByPallet(palletBarcode){
+    const pbc = normalizeBarcode(palletBarcode);
+    if(!pbc) return [];
+    const qy = query(collection(db, COL_STOCK), where("palletBarcode","==",pbc), limit(200));
+    const snap = await getDocs(qy);
+    const rows = [];
+    snap.forEach(d=> rows.push({ id:d.id, ...d.data() }));
+    return rows;
+  }
 
-    let fromPos=null, toPos=null, prod=null, pal=null;
+  async function deletePalletEverywhere(palletBarcode){
+    const user = auth.currentUser;
+    if(!user) throw new Error("Not signed in.");
+    if(!canOperate(user)) throw new Error("No permission.");
 
-    // ===== Modo A: Sem palete -> ORIGEM -> DESTINO -> PRODUTO -> qty (palete opcional)
-    async function handleFromEnter(){
-      const code = normalizeBarcode(mFrom.value);
-      const p = await getPositionByCode(code);
-      if(!p){ mMsg.innerHTML = msgBox("Origem não encontrada.", "err"); return; }
-      fromPos = p;
-      mMsg.innerHTML = msgBox(`Origem OK: <b>${esc(fromPos.code)}</b>`, "ok");
-      mTo.disabled=false;
-      mTo.focus();
+    const pbc = normalizeBarcode(palletBarcode);
+    if(!pbc) throw new Error("Pallet inválida.");
+
+    const rows = await listStockByPallet(pbc);
+    if(rows.length===0) throw new Error("Esta palete não existe no stock.");
+
+    // batch delete + log movements
+    let batch = writeBatch(db);
+    let ops = 0;
+
+    for(const r of rows){
+      const ref = doc(db, COL_STOCK, r.id);
+      batch.delete(ref);
+      const mvRef = doc(collection(db, COL_MOVEMENTS));
+      batch.set(mvRef, {
+        type: "ELIMINAR_PALETE",
+        ts: serverTimestamp(),
+        userId: user.uid,
+        userEmail: (user.email||""),
+        userLabel: ((user.email||"").split("@")[0]||""),
+        userEmail: (user.email||""),
+        userLabel: ((user.email||"").split("@")[0]||""),
+        positionId: r.positionId || "",
+        productId: r.productId || "",
+        palletBarcode: pbc,
+        slotType: r.slotType || "",
+        qtyUnits: Number(r.qtyUnits||0),
+        qtyPallets: Number(r.qtyPallets||0),
+        origin: r.origin || "",
+      });
+      ops += 2;
+
+      if(ops >= 400){
+        await batch.commit();
+        batch = writeBatch(db);
+        ops = 0;
+      }
     }
-    async function handleToEnter(){
+    if(ops>0) await batch.commit();
+    return rows.length;
+  }
+
+  function setupEliminarPallet(){
+    const ePal=$("ePal"), eInfo=$("eInfo"), eClear=$("eClear"), eDel=$("eDel"), eMsg=$("eMsg");
+    const opBack = document.getElementById("opBackBtn");
+    if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
+
+    let pallet=null, rows=[];
+
+    function reset(){
+      pallet=null; rows=[];
+      ePal.value="";
+      if(eInfo) eInfo.textContent="";
+      eDel.disabled=true;
+      eMsg.innerHTML = msgBox("Pica a PALETE.", "warn");
+      ePal.focus();
+    }
+    reset();
+    eClear.onclick = reset;
+
+    async function refreshInfo(){
+      if(!pallet){ eDel.disabled=true; return; }
+      rows = await listStockByPallet(pallet);
+      if(rows.length===0){
+        if(eInfo) eInfo.textContent="Não encontrada no stock.";
+        eDel.disabled=true;
+        eMsg.innerHTML = msgBox("Pallet não existe no stock.", "err");
+        return;
+      }
+      // Build simple list
+      const lines = [];
+      for(const r of rows.slice(0,12)){
+        const pos = await loadPositionById(r.positionId||"");
+        const prod = await loadProductById(r.productId||"");
+        lines.push(`${(pos.code||r.positionId||"-")} • ${(prod.name||prod.barcode||r.productId||"-")} • UND ${Number(r.qtyUnits||0)} • Pal ${Number(r.qtyPallets||0)} • ${r.slotType||""}`);
+      }
+      if(rows.length>12) lines.push(`… +${rows.length-12} linhas`);
+      if(eInfo) eInfo.textContent = `${rows.length} linha(s) encontradas`;
+      eMsg.innerHTML = `<div class="msg warn"><b>${esc(pallet)}</b><div style="margin-top:8px;white-space:pre-line">${esc(lines.join("\n"))}</div></div>`;
+      eDel.disabled=false;
+    }
+
+    ePal.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      const code = normalizeBarcode(ePal.value);
+      if(!code){ eMsg.innerHTML = msgBox("Pica a palete.", "warn"); return; }
+      pallet = code;
+      await refreshInfo();
+    });
+
+    eDel.onclick = async ()=>{
+      try{
+        if(!pallet) throw new Error("Falta palete.");
+        eDel.disabled=true;
+        const n = await deletePalletEverywhere(pallet);
+        eMsg.innerHTML = msgBox(`✅ Eliminada palete ${esc(pallet)} (${n} linha(s)).`, "ok");
+        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
+        else reset();
+      }catch(err){
+        eDel.disabled=false;
+        eMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+      }
+    };
+  }
+
+
+
+  function setupMove(){
+    const opBack = document.getElementById("opBackBtn");
+    if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
+    const mFrom=$("mFrom"), mTo=$("mTo"), mProd=$("mProd"), mPal=$("mPal");
+    const mMove=$("mMove"), mClear2=$("mClear2");
+    const mMsg=$("mMsg");
+    const mQtyU=$("mQtyU"), mQtyP=$("mQtyP");
+
+    let fromPos=null, toPos=null, prod=null, pal=null, stock=null;
+
+    function reset(){
+      fromPos=toPos=prod=pal=stock=null;
+      mPal.value=""; mFrom.value=""; mProd.value=""; mTo.value="";
+      mTo.disabled = true;
+      mMove.disabled = true;
+      mMsg.innerHTML = msgBox("Pica a PALETE para carregar origem/produto.", "warn");
+      mPal.focus();
+    }
+    reset();
+    if(mClear2) mClear2.onclick = reset;
+
+    async function resolvePal(){
+      const code = normalizeBarcode(mPal.value);
+      if(!code){ mMsg.innerHTML = msgBox("Pica a PALETE.", "warn"); return; }
+      const res = await resolvePalletGlobal(code);
+      if(res.ok){
+        pal = res.pbc;
+        fromPos = res.position;
+        prod = res.product;
+        stock = res.stock || {};
+        mFrom.value = fromPos.code || "";
+        mProd.value = prod.barcode || "";
+        mTo.disabled = false;
+        mTo.focus();
+        mMsg.innerHTML = msgBox(`Pallet OK • Origin <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • UND ${Number(stock.qtyUnits||0)} • Pal ${Number(stock.qtyPallets||0)}`, "ok");
+        return;
+      }
+      if(res.reason==="multiplo"){
+        const rows = res.rows || [];
+        mMsg.innerHTML = `
+          <div class="msg warn">
+            Esta palete aparece em várias linhas. Escolhe:
+            <div style="margin-top:8px;display:grid;gap:8px">
+              ${rows.map((x,i)=>`
+                <button class="btn ghost" data-choice="${i}">
+                  ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
+                </button>
+              `).join("")}
+            </div>
+          </div>`;
+        mMsg.querySelectorAll("[data-choice]").forEach(btn=>{
+          btn.onclick = ()=>{
+            const i = Number(btn.getAttribute("data-choice"));
+            const pick = rows[i];
+            pal = res.pbc;
+            fromPos = pick.position;
+            prod = pick.product;
+            stock = pick.stock || {};
+            mFrom.value = fromPos.code || "";
+            mProd.value = prod.barcode || "";
+            mTo.disabled = false;
+            mTo.focus();
+            mMsg.innerHTML = msgBox(`Pallet OK • Origin <b>${esc(fromPos.code)}</b> • ${esc(prod.name)}`, "ok");
+          };
+        });
+        return;
+      }
+      mMsg.innerHTML = msgBox("Pallet não encontrada no stock.", "err");
+    }
+
+    mPal.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
+
+    mTo.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      if(!(fromPos && prod && pal)){ mMsg.innerHTML = msgBox("Primeiro pica a PALETE.", "warn"); return; }
       const code = normalizeBarcode(mTo.value);
       const p = await getPositionByCode(code);
       if(!p){ mMsg.innerHTML = msgBox("Destino não encontrado.", "err"); return; }
       toPos = p;
-      mMsg.innerHTML = msgBox(`Destino OK: <b>${esc(toPos.code)}</b>`, "ok");
-      mProd.disabled=false;
-      mPal.disabled=false;
-      mProd.focus();
-      enable();
-    }
-    async function handleProdEnter(){
-      const bc = normalizeBarcode(mProd.value);
-      const p = await getProductByBarcode(bc);
-      if(!p){ mMsg.innerHTML = msgBox("Produto não encontrado.", "err"); return; }
-      prod = p;
-      mMsg.innerHTML = msgBox(`Produto OK: <b>${esc(prod.name)}</b>`, "ok");
-      mQtyU.disabled=false; mQtyP.disabled=false;
-      mAll.disabled=false;
-      mQtyU.focus();
-      enable();
-    }
-
-    // ===== Modo B: Com palete -> palete -> resolve origem+produto -> destino -> qty
-    function setResolved(res){
-      fromPos = res.position;
-      prod = res.product;
-      pal = res.pbc;
-
-      mFrom.value = fromPos.code || "";
-      mProd.value = prod.barcode || "";
-      mPal.value = pal || "";
-
-      mFrom.disabled = true;
-      mProd.disabled = true;
-
-      mTo.disabled = false;
-      mTo.focus();
-
-      mMsg.innerHTML = msgBox(`Palete OK • Origem: <b>${esc(fromPos.code)}</b> • Produto: <b>${esc(prod.name)}</b>`, "ok");
-      enable();
-    }
-
-    function reset(){
-      fromPos=toPos=prod=pal=null;
-      mFrom.value=""; mTo.value=""; mProd.value=""; mPal.value=""; mQtyU.value=""; mQtyP.value="";
-      // dual: pode começar por PALETE OU por ORIGEM
-      mPal.disabled = false;
-      mFrom.disabled = false;
-      mTo.disabled = true;
-      mProd.disabled = true;
-      mQtyU.disabled = true;
-      mQtyP.disabled = true;
-      mAll.disabled = true;
-      mOk.disabled = true;
-      mMsg.innerHTML = msgBox('Escolhe um método: <b>pica PALETE</b> (se tiver código) ou <b>pica ORIGEM</b> (se não tiver).', "warn");
-      mPal.focus();
-    }
-    reset();
-    mClear.onclick = reset;
-
-    // Palete primeiro (se tiver)
-    mPal.addEventListener("keydown", async (e)=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        const code = normalizeBarcode(mPal.value);
-        if(!code){
-          mMsg.innerHTML = msgBox("Sem código de palete: usa ORIGEM → DESTINO → PRODUTO.", "warn");
-          mFrom.focus();
-          return;
-        }
-
-        const res = await resolvePalletGlobal(code);
-        if(res.ok){ setResolved(res); return; }
-
-        if(res.reason==="multiplo"){
-          const rows = res.rows || [];
-          mMsg.innerHTML = `
-            <div class="msg warn">
-              Esta palete existe em mais do que uma linha. Escolhe:
-              <div style="margin-top:8px;display:grid;gap:8px">
-                ${rows.map((x,i)=>`
-                  <button class="btn ghost" data-choice="${i}">
-                    ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
-                  </button>
-                `).join("")}
-              </div>
-            </div>`;
-          mMsg.querySelectorAll("[data-choice]").forEach(btn=>{
-            btn.onclick = ()=>{
-              const i = Number(btn.getAttribute("data-choice"));
-              setResolved({ pbc: res.pbc, ...rows[i] });
-            };
-          });
-          return;
-        }
-
-        mMsg.innerHTML = msgBox("Palete não encontrada. Se não tiver código, usa ORIGEM → DESTINO → PRODUTO.", "err");
-        mFrom.focus();
-      }
+      mMove.disabled = false;
+      mMsg.innerHTML = msgBox(`Destino OK: <b>${esc(toPos.code)}</b>. Agora podes mover.`, "ok");
     });
 
-    // Fluxo antigo: origem/dest/prod
-    mFrom.addEventListener("keydown", async (e)=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        if(pal){ return; } // já em modo palete
-        if(!mFrom.value){ mMsg.innerHTML = msgBox("Pica a ORIGEM.", "warn"); return; }
-        await handleFromEnter();
-        enable();
-      }
-    });
-    mTo.addEventListener("keydown", async (e)=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        if(!fromPos){ mMsg.innerHTML = msgBox("Primeiro ORIGEM (ou PALETE).", "warn"); return; }
-        if(!mTo.value){ mMsg.innerHTML = msgBox("Pica o DESTINO.", "warn"); return; }
-        await handleToEnter();
-      }
-    });
-    mProd.addEventListener("keydown", async (e)=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        if(pal){ return; } // em modo palete produto é auto
-        if(!(fromPos && toPos)){ mMsg.innerHTML = msgBox("Primeiro ORIGEM e DESTINO.", "warn"); return; }
-        await handleProdEnter();
-      }
-    });
-
-    function enable(){
-      const u=Math.floor(Number(mQtyU.value||0));
-      const p=Math.floor(Number(mQtyP.value||0));
-      mOk.disabled = !(fromPos && toPos && prod && (u>0 || p>0));
-      // TUDO só se houver palete (porque é por registo)
-      mAll.disabled = !(fromPos && toPos && prod && (pal || normalizeBarcode(mPal.value)));
-    }
-    mQtyU.addEventListener("input", enable);
-    mQtyP.addEventListener("input", enable);
-    mQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); mOk.click(); }});
-    mQtyP.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); mOk.click(); }});
-
-    mAll.onclick = async ()=>{
+    mMove.onclick = async ()=>{
       try{
-        if(!(fromPos && toPos && prod)) throw new Error("Falta ORIGEM/DESTINO/PRODUTO.");
-        const palletToUse = pal ? pal : normalizeBarcode(mPal.value);
-        if(!palletToUse) throw new Error("Para MUDAR TUDO precisas de PALETE com código.");
-        const res = await resolvePalletProduct(fromPos.id, palletToUse);
-        if(!res.ok) throw new Error("Não consegui obter o stock dessa palete na origem.");
-        const u = Number(res.stock.qtyUnits||0);
-        const p = Number(res.stock.qtyPallets||0);
-        if(!(u>0 || p>0)) throw new Error("Sem stock nesta palete.");
-        await moveStock(fromPos.id, toPos.id, prod.id, palletToUse, u, p);
-        mMsg.innerHTML = msgBox(`✅ MUDADO TUDO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${esc(palletToUse)} • ${u} UND • ${p} Pal`, "ok");
-        mQtyU.value=""; mQtyP.value="";
-        enable();
-      }catch(err){
-        mMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
-      }
-    };
+        if(!(fromPos && toPos && prod && pal)) throw new Error("Falta dados.");
+        const u = Number(stock.qtyUnits||0);
+        const p = Number(stock.qtyPallets||0);
+        if(!(u>0 || p>0)) throw new Error("Sem stock na palete.");
+        if(mQtyU) mQtyU.value = String(u);
+        if(mQtyP) mQtyP.value = String(p);
+        await moveStock(fromPos.id, toPos.id, prod.id, pal, u, p);
+        mMsg.innerHTML = msgBox(`✅ MOVIDO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${esc(pal)}`, "ok");
+        if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
 
-    mOk.onclick = async ()=>{
-      try{
-        if(!(fromPos && toPos)) throw new Error("Falta ORIGEM/DESTINO.");
-        if(!prod) throw new Error("Falta PRODUTO.");
-        const qtyU=Math.floor(Number(mQtyU.value||0));
-        const qtyP=Math.floor(Number(mQtyP.value||0));
-        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD (UND e/ou Paletes).");
-        const palletToUse = pal ? pal : (mPal.value || "");
-        await moveStock(fromPos.id, toPos.id, prod.id, palletToUse, qtyU, qtyP);
-        mMsg.innerHTML = msgBox(`✅ MUDADO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${palletToUse?esc(palletToUse):"—"} • ${qtyU} UND • ${qtyP} Pal`, "ok");
-        mQtyU.value=""; mQtyP.value=""; 
-        mQtyU.focus();
-        enable();
+        reset();
       }catch(err){
         mMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
       }
     };
   }
 
-  // ===== Consultar (PC e Mobile) =====
-  function renderConsultar(){
+  // ===== Lookup (PC e Mobile) =====
+  function renderLookup(){
     viewEl.innerHTML = `
       <div class="card">
-        <h2 style="margin:0 0 8px">Consultar</h2>
+        <h2 style="margin:0 0 8px">Lookup</h2>
         <div class="hint">Ver onde estão <b>paletes/produtos</b> (por produto) e o que existe numa <b>posição</b> (por posição).</div>
         <div class="row" style="margin-top:10px">
-          <button class="btn ghost" id="btnExportStock">Exportar Stock (CSV ;)</button>
-          <button class="btn ghost" id="btnExportMov" style="display:none">Exportar Movimentos (CSV ;)</button>
+          <button class="btn ghost" id="btnExportStock">Export Stock (CSV ;)</button>
+          <button class="btn ghost" id="btnExportMov" style="display:none">Export Movements (CSV ;)</button>
           <div class="hint" id="exportHint" style="margin-left:6px"></div>
         </div>
       </div>
@@ -1870,7 +2380,7 @@ function setupRetirar(){
             </div>
             <div class="right">
               <button class="btn ok" id="cpGo">Procurar</button>
-              <button class="btn ghost" id="cpClear">Limpar</button>
+              <button class="btn ghost" id="cpClear">Clear</button>
             </div>
           </div>
           <div id="cpMsg"></div>
@@ -1879,7 +2389,7 @@ function setupRetirar(){
         </div>
 
         <div class="card">
-          <h2>Por Posição</h2>
+          <h2>Por Location</h2>
           <div class="hint">Pica o barcode da posição para ver produtos/paletes arrumados.</div>
           <div class="row" style="margin-top:10px">
             <div class="field">
@@ -1889,7 +2399,7 @@ function setupRetirar(){
             </div>
             <div class="right">
               <button class="btn ok" id="csGo">Procurar</button>
-              <button class="btn ghost" id="csClear">Limpar</button>
+              <button class="btn ghost" id="csClear">Clear</button>
             </div>
           </div>
           <div id="csMsg"></div>
@@ -1898,8 +2408,8 @@ function setupRetirar(){
         </div>
       </div>
     `;
-    setupConsultarProduto();
-    setupConsultarPosicao();
+    setupLookupProduto();
+    setupLookupPosicao();
     setupTotaisProduto();
 
     const btnS = $("btnExportStock");
@@ -1912,12 +2422,155 @@ function setupRetirar(){
       catch(e){ hint.textContent = "❌ " + (e.message||e); }
     };
     if(btnM) btnM.onclick = async ()=>{
-      try{ hint.textContent = "A exportar movimentos..."; await exportMovementsCSV(); hint.textContent = "✅ Movimentos exportados."; }
+      try{ hint.textContent = "A exportar movimentos..."; await exportMovementsCSV(); hint.textContent = "✅ Movements exportados."; }
       catch(e){ hint.textContent = "❌ " + (e.message||e); }
     };
   }
 
-  function setupConsultarProduto(){
+  async function computeStockTotalsByProduct(){
+    const snap = await getDocs(query(collection(db, COL_STOCK), limit(2000)));
+    const map = new Map(); // productId -> {completeU,completeP,pickingU,pickingP, palletsComplete:Set, palletsPicking:Set}
+    snap.forEach(d=>{
+      const x = d.data() || {};
+      const pid = x.productId || "";
+      if(!pid) return;
+      const slot = String(x.slotType||"PICKING").toUpperCase();
+      const u = Number(x.qtyUnits||0);
+      const p = Number(x.qtyPallets||0);
+      const pal = normalizeBarcode(x.palletBarcode||"");
+      if(!map.has(pid)){
+        map.set(pid, { completeU:0, completeP:0, pickingU:0, pickingP:0, palletsComplete:new Set(), palletsPicking:new Set() });
+      }
+      const t = map.get(pid);
+      if(slot==="COMPLETA"){
+        t.completeU += u;
+        t.completeP += p;
+        if(pal) t.palletsComplete.add(pal);
+      }else{
+        t.pickingU += u;
+        t.pickingP += p;
+        if(pal) t.palletsPicking.add(pal);
+      }
+    });
+
+    // load products to map barcode/name
+    const prodSnap = await getDocs(query(collection(db, COL_PRODUCTS), limit(3000)));
+    const prodMap = new Map();
+    prodSnap.forEach(d=> prodMap.set(d.id, ({ id:d.id, ...d.data() })));
+
+    const rows = [];
+    map.forEach((t, pid)=>{
+      const pr = prodMap.get(pid) || { name:"", barcode:"" };
+      rows.push({
+        productId: pid,
+        name: pr.name || "",
+        barcode: pr.barcode || "",
+        UND_COMPLETA: t.completeU,
+        PAL_COMPLETA: t.completeP,
+        N_PALETES_COMPLETA: t.palletsComplete.size,
+        UND_PICKING: t.pickingU,
+        PAL_PICKING: t.pickingP,
+        N_PALETES_PICKING: t.palletsPicking.size
+      });
+    });
+
+    rows.sort((a,b)=> (a.name||"").localeCompare(b.name||"") || (a.barcode||"").localeCompare(b.barcode||""));
+    return rows;
+  }
+
+  function toCSVSemicolon(rows){
+    const headers = ["produto","barcode","UND_COMPLETA","PAL_COMPLETA","N_PALETES_COMPLETA","UND_PICKING","PAL_PICKING","N_PALETES_PICKING"];
+    const lines = [headers.join(";")];
+    for(const r of rows){
+      const vals = [
+        (r.name||"").replace(/;/g,","),
+        (r.barcode||""),
+        r.UND_COMPLETA||0, r.PAL_COMPLETA||0, r.N_PALETES_COMPLETA||0,
+        r.UND_PICKING||0, r.PAL_PICKING||0, r.N_PALETES_PICKING||0
+      ];
+      lines.push(vals.join(";"));
+    }
+    return lines.join("\n");
+  }
+
+  function downloadText(filename, text){
+    const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  }
+
+  async function renderStock(){
+    viewEl.innerHTML = `
+      <div class="card">
+        <h2 style="margin:0 0 6px">Stock by product</h2>
+        <div class="hint">Totais separados por <b>COMPLETA</b> e <b>PICKING</b>.</div>
+
+        <div class="row" style="margin-top:10px;align-items:flex-end">
+          <div class="field" style="flex:1;min-width:200px">
+            <label>Search</label>
+            <input id="stQ" placeholder="nome ou barcode..." />
+          </div>
+          <button class="btn ghost" id="stReload">Refresh</button>
+          <button class="btn ok" id="stExport">Export ;</button>
+        </div>
+
+        <div id="stMsg"></div>
+        <div style="overflow:auto;margin-top:12px">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Produto</th><th>Barcode</th>
+                <th>UND (Completa)</th><th>Pal (Completa)</th><th>#Pallets</th>
+                <th>UND (Picking)</th><th>Pal (Picking)</th><th>#Pallets</th>
+              </tr>
+            </thead>
+            <tbody id="stBody"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    const stQ=$("stQ"), stReload=$("stReload"), stExport=$("stExport"), stBody=$("stBody"), stMsg=$("stMsg");
+    let all = [];
+    async function load(){
+      stMsg.innerHTML = msgBox("A carregar…", "warn");
+      all = await computeStockTotalsByProduct();
+      stMsg.innerHTML = msgBox(`✅ ${all.length} produto(s).`, "ok");
+      draw();
+    }
+    function draw(){
+      const q = (stQ.value||"").toLowerCase().trim();
+      const rows = q ? all.filter(r => (r.name||"").toLowerCase().includes(q) || (r.barcode||"").toLowerCase().includes(q)) : all;
+      stBody.innerHTML = rows.map(r=>`
+        <tr>
+          <td>${esc(r.name)}</td>
+          <td class="mono">${esc(r.barcode)}</td>
+          <td class="mono">${Number(r.UND_COMPLETA||0)}</td>
+          <td class="mono">${Number(r.PAL_COMPLETA||0)}</td>
+          <td class="mono">${Number(r.N_PALETES_COMPLETA||0)}</td>
+          <td class="mono">${Number(r.UND_PICKING||0)}</td>
+          <td class="mono">${Number(r.PAL_PICKING||0)}</td>
+          <td class="mono">${Number(r.N_PALETES_PICKING||0)}</td>
+        </tr>
+      `).join("");
+    }
+    stQ.addEventListener("input", draw);
+    stReload.onclick = load;
+    stExport.onclick = ()=>{
+      const csv = toCSVSemicolon(all);
+      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+      downloadText(`stock_por_produto_${stamp}.csv`, csv);
+    };
+    await load();
+  }
+
+
+  function setupLookupProduto(){
     const inp = $("cpProd"), go = $("cpGo"), clear = $("cpClear");
     const msg = $("cpMsg"), info = $("cpProdInfo"), results = $("cpResults");
     let prod = null;
@@ -1947,19 +2600,21 @@ function setupRetirar(){
             palletBarcode: r.palletBarcode || "",
             slotType: r.slotType || "PICKING",
             qtyUnits: Number(r.qtyUnits||0),
-            qtyPallets: Number(r.qtyPallets||0)
+            qtyPallets: Number(r.qtyPallets||0),
+            status: r.status || ""
           };
         }).sort((a,b)=>(a.posCode||"").localeCompare(b.posCode||"", "pt", {sensitivity:"base"}));
 
         results.innerHTML = `
           <div style="overflow:auto">
             <table>
-              <thead><tr><th>Posição</th><th>Palete</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
+              <thead><tr><th>Location</th><th>Pallet</th><th>Status</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
               <tbody>
                 ${view.map(v=>`
                   <tr>
                     <td><span class="mono">${esc(v.posCode)}</span></td>
                     <td><span class="mono">${esc(v.palletBarcode || "—")}</span></td>
+                    <td>${esc(v.status || "—")}</td>
                     <td>${esc(v.slotType)}</td>
                     <td><b>${v.qtyUnits}</b></td><td><b>${v.qtyPallets}</b></td>
                   </tr>
@@ -1977,7 +2632,7 @@ function setupRetirar(){
     reset();
   }
 
-  function setupConsultarPosicao(){
+  function setupLookupPosicao(){
     const inp = $("csPos"), go = $("csGo"), clear = $("csClear");
     const msg = $("csMsg"), info = $("csPosInfo"), results = $("csResults");
     let pos = null;
@@ -1988,7 +2643,7 @@ function setupRetirar(){
       try{
         msg.innerHTML=""; results.innerHTML="";
         pos = await getPositionByBarcode(inp.value);
-        if(!pos) throw new Error("Posição não encontrada.");
+        if(!pos) throw new Error("Location não encontrada.");
         info.textContent = "✅ " + (pos.code||"");
 
         const qy = query(collection(db, COL_STOCK), where("positionId","==", pos.id));
@@ -2007,19 +2662,21 @@ function setupRetirar(){
             palletBarcode: r.palletBarcode || "",
             slotType: r.slotType || "PICKING",
             qtyUnits: Number(r.qtyUnits||0),
-            qtyPallets: Number(r.qtyPallets||0)
+            qtyPallets: Number(r.qtyPallets||0),
+            status: r.status || ""
           };
         }).sort((a,b)=>(a.prodName||"").localeCompare(b.prodName||"", "pt", {sensitivity:"base"}));
 
         results.innerHTML = `
           <div style="overflow:auto">
             <table>
-              <thead><tr><th>Produto</th><th>Palete</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
+              <thead><tr><th>Produto</th><th>Pallet</th><th>Status</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
               <tbody>
                 ${view.map(v=>`
                   <tr>
                     <td>${esc(v.prodName)}</td>
                     <td><span class="mono">${esc(v.palletBarcode || "—")}</span></td>
+                    <td>${esc(v.status || "—")}</td>
                     <td>${esc(v.slotType)}</td>
                     <td><b>${v.qtyUnits}</b></td><td><b>${v.qtyPallets}</b></td>
                   </tr>
@@ -2076,7 +2733,7 @@ function setupRetirar(){
 
   
   // ===== Export CSV (separador ;) =====
-  function downloadText(filename, text){
+  function downloadTextFile(filename, text){
     const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -2111,7 +2768,7 @@ function setupRetirar(){
       csvEscape(sanitizeBarcodeExport(r.barcode || ""))
     ].join(";"));
 
-    downloadText(`produtos_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
+    downloadTextFile(`produtos_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
   }
 
 async function exportStockCSV(){
@@ -2127,11 +2784,11 @@ async function exportStockCSV(){
     const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? (posSnaps[i].data().code || id) : id]));
     const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? (prodSnaps[i].data().name || id) : id]));
 
-    const header = ["posicao","produto","palletBarcode","tipo","origem","qtyUnits","qtyPallets","updatedAt"].join(";");
+    const header = ["posicao","produto","palletBarcode","tipo","status","origem","qtyUnits","qtyPallets","updatedAt"].join(";");
     const lines = rows.map(r=>{
       const code = posMap.get(r.positionId) || r.positionId || "";
       const name = prodMap.get(r.productId) || r.productId || "";
-      const upd = r.updatedAt?.toDate ? r.updatedAt.toDate().toISOString() : "";
+      const upd = r.updatedAt.toDate ? r.updatedAt.toDate().toISOString() : "";
       return [
         csvEscape(code),
         csvEscape(name),
@@ -2144,7 +2801,7 @@ async function exportStockCSV(){
       ].join(";");
     });
 
-    downloadText(`stock_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
+    downloadTextFile(`stock_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
   }
 
   async function exportMovementsCSV(){
@@ -2155,12 +2812,12 @@ async function exportStockCSV(){
     const header = ["ts","type","userId","positionId","fromPositionId","toPositionId","productId","palletBarcode","slotType","qtyUnits","qtyPallets"].join(";");
     const lines = rows
       .sort((a,b)=>{
-        const ta = a.ts?.toDate ? a.ts.toDate().getTime() : 0;
-        const tb = b.ts?.toDate ? b.ts.toDate().getTime() : 0;
+        const ta = a.ts.toDate ? a.ts.toDate().getTime() : 0;
+        const tb = b.ts.toDate ? b.ts.toDate().getTime() : 0;
         return tb - ta;
       })
       .map(r=>{
-        const ts = r.ts?.toDate ? r.ts.toDate().toISOString() : "";
+        const ts = r.ts.toDate ? r.ts.toDate().toISOString() : "";
         return [
           csvEscape(ts),
           csvEscape(r.type || ""),
@@ -2176,7 +2833,7 @@ async function exportStockCSV(){
         ].join(";");
       });
 
-    downloadText(`movimentos_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
+    downloadTextFile(`movimentos_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
   }
 
   async function computeTotalsByProduct(){
@@ -2216,17 +2873,17 @@ async function exportStockCSV(){
       csvEscape(Number(r.qtyUnits||0)),
       csvEscape(Number(r.qtyPallets||0))
     ].join(";"));
-    downloadText(`totais_produto_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\\n"));
+    downloadTextFile(`totais_produto_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\\n"));
   }
 
 
 
-  // ===== Movimentos: listar + anular/editar =====
-  function renderMovimentos(){
+  // ===== Movements: listar + anular/editar =====
+  function renderMovements(){
     const u = auth.currentUser;
     viewEl.innerHTML = `
       <div class="card">
-        <h2 style="margin:0 0 8px">Movimentos</h2>
+        <h2 style="margin:0 0 8px">Movements</h2>
         <div class="hint">Listagem e correções. Para manter histórico, o sistema faz <b>anulação</b> (reverte stock) e <b>edição</b> (ajusta stock pela diferença).</div>
         <div class="row" style="margin-top:10px">
           <div class="field">
@@ -2242,8 +2899,8 @@ async function exportStockCSV(){
             <input id="mvFilter" placeholder="posição / produto / palete / tipo / userId" />
           </div>
           <div class="right">
-            <button class="btn ghost" id="mvReload">Atualizar</button>
-            <button class="btn ghost" id="mvExport">Exportar Movimentos (CSV ;)</button>
+            <button class="btn ghost" id="mvReload">Refresh</button>
+            <button class="btn ghost" id="mvExport">Export Movements (CSV ;)</button>
           </div>
         </div>
         <div id="mvMsg"></div>
@@ -2251,14 +2908,14 @@ async function exportStockCSV(){
 
       <div class="card" style="margin-top:12px">
         <h2 style="margin:0 0 8px">Total por Produto</h2>
-        <div class="hint">Soma de UND e Paletes em todas as posições/paletes.</div>
+        <div class="hint">Soma de UND e Pallets em todas as posições/paletes.</div>
         <div class="row" style="margin-top:10px">
           <div class="field"><label>Filtro produto</label><input id="totFilter" placeholder="nome ou barcode" /></div>
-          <div class="right"><button class="btn ghost" id="btnExportTotals">Exportar Totais (CSV ;)</button></div>
+          <div class="right"><button class="btn ghost" id="btnExportTotals">Export Totais (CSV ;)</button></div>
         </div>
         <div style="overflow:auto;margin-top:10px">
           <table>
-            <thead><tr><th>Produto</th><th>Barcode</th><th>UND Total</th><th>Paletes Total</th></tr></thead>
+            <thead><tr><th>Produto</th><th>Barcode</th><th>UND Total</th><th>Pallets Total</th></tr></thead>
             <tbody id="totTable"></tbody>
           </table>
         </div>
@@ -2268,8 +2925,8 @@ async function exportStockCSV(){
         <table>
           <thead>
             <tr>
-              <th>Data</th><th>Tipo</th><th>Posição</th><th>Origem</th><th>Destino</th>
-              <th>Produto</th><th>Palete</th><th>Tipo Slot</th><th>UND</th><th>Pal</th><th>User</th><th></th>
+              <th>Data</th><th>Tipo</th><th>Location</th><th>Origin</th><th>Destino</th>
+              <th>Produto</th><th>Pallet</th><th>Tipo Slot</th><th>UND</th><th>Pal</th><th>User</th><th></th>
             </tr>
           </thead>
           <tbody id="mvTable"></tbody>
@@ -2286,7 +2943,7 @@ async function exportStockCSV(){
               <div class="hint">Campos editáveis</div>
               <div class="row" style="margin-top:10px">
                 <div class="field"><label>UND</label><input id="mvEditU" type="number" min="0" step="1" /></div>
-                <div class="field"><label>Paletes</label><input id="mvEditP" type="number" min="0" step="1" /></div>
+                <div class="field"><label>Pallets</label><input id="mvEditP" type="number" min="0" step="1" /></div>
               </div>
               <div class="row">
                 <div class="field"><label>Tipo Slot (ARRUMAR/RETIRAR)</label>
@@ -2317,10 +2974,10 @@ async function exportStockCSV(){
       </div>
     `;
 
-    setupMovimentos();
+    setupMovements();
   }
 
-  async function setupMovimentos(){
+  async function setupMovements(){
     const mvTable = $("mvTable");
     const mvMsg = $("mvMsg");
     const mvReload = $("mvReload");
@@ -2366,7 +3023,7 @@ async function exportStockCSV(){
       mvTable.innerHTML = `<tr><td colspan="12">A carregar...</td></tr>`;
       const n = Number(mvLimit.value||100);
 
-      // Movimentos precisam de leitura para operadores também (ver rules abaixo)
+      // Movements precisam de leitura para operadores também (ver rules abaixo)
       const qy = query(collection(db, COL_MOVEMENTS), orderBy("ts","desc"), limit(n));
       const snap = await getDocs(qy);
 
@@ -2384,7 +3041,7 @@ async function exportStockCSV(){
       const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? (prodSnaps[i].data().name || id) : id]));
 
       const view = rows.map(r=>{
-        const ts = r.ts?.toDate ? r.ts.toDate().toLocaleString() : "";
+        const ts = r.ts.toDate ? r.ts.toDate().toLocaleString() : "";
         const type = (r.type||"");
         const pos = posMap.get(r.positionId) || "";
         const from = posMap.get(r.fromPositionId) || "";
@@ -2439,7 +3096,7 @@ async function exportStockCSV(){
       try{
         mvMsg.innerHTML = msgBox("A exportar movimentos...", "");
         await exportMovementsCSV(); // já existe helper
-        mvMsg.innerHTML = msgBox("✅ Movimentos exportados.", "ok");
+        mvMsg.innerHTML = msgBox("✅ Movements exportados.", "ok");
       }catch(e){
         mvMsg.innerHTML = msgBox("❌ " + esc(e.message||e), "err");
       }
@@ -2471,8 +3128,8 @@ async function exportStockCSV(){
 
         const newU = Math.floor(Number(editU.value||0));
         const newP = Math.floor(Number(editP.value||0));
-        if(newU<0 || newP<0) throw new Error("Quantidades inválidas.");
-        if(newU===0 && newP===0) throw new Error("Indica UND e/ou Paletes.");
+        if(newU<0 || newP<0) throw new Error("Quantitys inválidas.");
+        if(newU===0 && newP===0) throw new Error("Indica UND e/ou Pallets.");
 
         const newSlot = editSlot.value || null;
 
@@ -2489,8 +3146,8 @@ async function exportStockCSV(){
 
   async function cancelMovement(mvId, reason){
     const user = auth.currentUser;
-    if(!user) throw new Error("Sem login.");
-    if(!canOperate(user)) throw new Error("Sem permissões.");
+    if(!user) throw new Error("Not signed in.");
+    if(!canOperate(user)) throw new Error("No permission.");
 
     const mvRef = doc(db, COL_MOVEMENTS, mvId);
 
@@ -2561,8 +3218,8 @@ async function exportStockCSV(){
 
   async function editMovement(mvId, patch, reason){
     const user = auth.currentUser;
-    if(!user) throw new Error("Sem login.");
-    if(!canOperate(user)) throw new Error("Sem permissões.");
+    if(!user) throw new Error("Not signed in.");
+    if(!canOperate(user)) throw new Error("No permission.");
 
     const mvRef = doc(db, COL_MOVEMENTS, mvId);
 
@@ -2652,7 +3309,7 @@ async function exportStockCSV(){
   }
 
 
-  // ===== Paletes: Gerador de códigos de barras =====
+  // ===== Pallets: Gerador de códigos de barras =====
   function generatePalletCode(prefix){
     const p = (prefix||"PLT").trim().toUpperCase().replace(/[^A-Z0-9_-]/g,"") || "PLT";
     const d = new Date();
@@ -2696,7 +3353,7 @@ async function exportStockCSV(){
 <html>
 <head>
 <meta charset="utf-8">
-<title>Etiqueta Palete</title>
+<title>Etiqueta Pallet</title>
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:18px}
   .box{border:1px solid #111;padding:14px;border-radius:14px;max-width:520px}
@@ -2723,12 +3380,12 @@ async function exportStockCSV(){
     w.document.close();
   }
 
-  function renderPaletes(){
+  function renderPallets(){
     const u = auth.currentUser;
     viewEl.innerHTML = `
       <div class="card">
-        <h2 style="margin:0 0 8px">Gerador de códigos de barras (Paletes)</h2>
-        <div class="hint">Gera um código único (CODE128) para colar/Imprimir e depois usar na operação (campo <b>Palete</b>).</div>
+        <h2 style="margin:0 0 8px">Gerador de códigos de barras (Pallets)</h2>
+        <div class="hint">Gera um código único (CODE128) para colar/Imprimir e depois usar na operação (campo <b>Pallet</b>).</div>
 
         <div class="grid two" style="margin-top:10px">
           <div class="card soft">
@@ -2738,7 +3395,7 @@ async function exportStockCSV(){
                 <input id="pltPrefix" value="PLT" />
               </div>
               <div class="field">
-                <label>Quantidade a gerar</label>
+                <label>Quantity a gerar</label>
                 <input id="pltQty" type="number" min="1" step="1" value="1" />
               </div>
               <div class="right">
@@ -2767,7 +3424,7 @@ async function exportStockCSV(){
         <h2 style="margin:0 0 8px">Reimprimir etiqueta de PALETE</h2>
         <div class="hint">Pica/insere o código de palete para voltar a imprimir. Se existir no stock, mostra também a localização e o produto.</div>
         <div class="row" style="margin-top:10px">
-          <div class="field"><label>Código de Palete</label><input id="pltReCode" placeholder="Pica o código..." /></div>
+          <div class="field"><label>Código de Pallet</label><input id="pltReCode" placeholder="Pica o código..." /></div>
           <div class="right">
             <button class="btn ghost" id="pltReFind">Procurar</button>
             <button class="btn ok" id="pltRePrint" disabled>Imprimir</button>
@@ -2784,10 +3441,10 @@ async function exportStockCSV(){
       </div>
     `;
 
-    setupPaletes();
+    setupPallets();
   }
 
-  function setupPaletes(){
+  function setupPallets(){
     const prefix = $("pltPrefix");
     const qty = $("pltQty");
     const title = $("pltTitle");
@@ -2878,11 +3535,11 @@ let codes = [];
         }else if(res.reason==="multiplo"){
           reResolved = null;
           rePrint.disabled = false;
-          reInfo.innerHTML = msgBox("Palete existe em várias linhas/duplicada. Podes imprimir na mesma.", "warn");
+          reInfo.innerHTML = msgBox("Pallet existe em várias linhas/duplicada. Podes imprimir na mesma.", "warn");
         }else{
           reResolved = null;
           rePrint.disabled = false;
-          reInfo.innerHTML = msgBox("Palete não encontrada no stock (podes imprimir na mesma).", "warn");
+          reInfo.innerHTML = msgBox("Pallet não encontrada no stock (podes imprimir na mesma).", "warn");
         }
       }catch(e){
         reResolved = null;
@@ -2915,10 +3572,10 @@ let codes = [];
       await signInWithEmailAndPassword(auth, email, pass);
       if(box) box.innerHTML = msgBox("✅ Login efetuado.", "ok");
     }catch(err){
-      const code = err?.code ? `<div class="hint">Código: <code>${esc(err.code)}</code></div>` : "";
-      const msg = err?.message || String(err);
+      const code = err.code ? `<div class="hint">Código: <code>${esc(err.code)}</code></div>` : "";
+      const msg = err.message || String(err);
       let tips = "";
-      const c = (err?.code || "").toString();
+      const c = (err.code || "").toString();
       if(c.includes("auth/unauthorized-domain")){
         tips = `<div class="hint">Domínio não autorizado. Publica em Firebase Hosting ou adiciona o domínio em Authentication → Settings → Authorized domains.</div>`;
       }
@@ -2934,14 +3591,40 @@ let codes = [];
 
   onAuthStateChanged(auth, (user)=>{
     state.user = user || null;
-    if(!user) state.tab = "operacao";
-    if(user){
-      const role = isAdminUser(user) ? "ADMIN" : (isWhUser(user) ? "OPERADOR" : "SEM_ACESSO");
-      authPill.textContent = `Auth: OK (${role})`;
-    }else{
-      authPill.textContent = "Auth: OFF";
+
+    // No session -> show only login screen
+    if(!state.user){
+      setGate("login");
+      return;
     }
-    render();
+
+    // Role check (do NOT auto-logout; show diagnostic)
+    if(!canOperate(state.user)){
+      const em = emailOfUser(state.user);
+      const am = $("authMsg");
+      if(am){
+        am.innerHTML = msgBox(
+          "No access for this email: <span class='mono'>"+esc(em || "(no email)")+
+          "</span><br>Expected: <span class='mono'>@admin.com</span> or <span class='mono'>@wh.com</span>.",
+          "err"
+        );
+      }
+      // keep login screen visible so user can switch account
+      setGate("login");
+      return;
+    }
+
+    // Try to render. Only hide login after render OK.
+    try{
+      const am=$("authMsg"); if(am) am.innerHTML = msgBox("Opening…", "warn");
+      render();
+      setGate("app");
+    }catch(e){
+      console.error(e);
+      const am=$("authMsg");
+      if(am) am.innerHTML = msgBox("Error opening app: "+esc(e.message||e), "err");
+      setGate("login");
+    }
   });
 
   /***********************
@@ -2978,7 +3661,6 @@ let codes = [];
      }
    }
 
-   ***********************/
-</script>
+   ***********************/</script>
 </body>
 </html>
