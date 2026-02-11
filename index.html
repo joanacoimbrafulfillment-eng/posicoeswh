@@ -672,8 +672,8 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     const dU = Number(deltaUnits || 0);
     const dP = Number(deltaPallets || 0);
 
-    // PICKING fica sempre a 0 (guarda palete mas ignora quantidades)
-    const pickingZero = (String(slotType||"").toUpperCase()==="PICKING"); // PICKING_ALWAYS_ZERO
+    // PICKING fica sempre com 1 UND (guarda palete e ignora quantidades inseridas)
+    const pickingFixedOne = (String(slotType||"").toUpperCase()==="PICKING"); // PICKING_FIXED_ONE
 
     const org = (origin||"").toString().trim().toUpperCase();
 
@@ -684,14 +684,14 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
 
       let nextU = curU + dU;
       let nextP = curP + dP;
-      if(pickingZero){ nextU = 0; nextP = 0; }
+      if(pickingFixedOne){ nextU = 1; nextP = 0; }
 
-      if(!pickingZero){
+      if(!pickingFixedOne){
         if(nextU < 0) throw new Error("Stock insuficiente (UND).");
         if(nextP < 0) throw new Error("Stock insuficiente (Pallets).");
       }
 
-      if(nextU === 0 && nextP === 0 && !pickingZero){
+      if(nextU === 0 && nextP === 0 && !pickingFixedOne){
         tx.delete(ref);
       }else{
         tx.set(ref, {
@@ -720,9 +720,12 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         slotType: slotType || "PICKING",
         qtyUnits: Math.abs(dU),
         qtyPallets: Math.abs(dP),
-        qtyUnitsApplied: pickingZero ? 0 : Math.abs(dU),
-        qtyPalletsApplied: pickingZero ? 0 : Math.abs(dP),
-        pickingIgnored: pickingZero,
+        qtyUnitsRequested: Math.abs(dU),
+        qtyPalletsRequested: Math.abs(dP),
+        qtyUnitsApplied: pickingFixedOne ? 1 : Math.abs(dU),
+        qtyPalletsApplied: pickingFixedOne ? 0 : Math.abs(dP),
+        pickingIgnored: pickingFixedOne,
+        pickingFixed: pickingFixedOne,
         origin: ((dU>=0 || dP>=0) && (org==="NEW"||org==="RETURNS")) ? org : "",
       });
     });
@@ -737,7 +740,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       positionId, productId,
       palletBarcode: pbc || "",
       slotType: "PICKING",
-      qtyUnits: 0,
+      qtyUnits: 1,
       qtyPallets: 0,
       updatedAt: serverTimestamp()
     }, { merge:true });
@@ -778,7 +781,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         tx.set(srcRef, { qtyUnits: nextU, qtyPallets: nextP, updatedAt: serverTimestamp() }, { merge:true });
       }
 
-      // destino PICKING: manter sempre 0 (só garante que existe a palete na posição)
+      // destino PICKING: manter sempre 1 UND (palete virtual de picking)
       const dstPid = palletIdFromBarcode(dstPbc);
       const dstKey = stockKey(toPositionId, productId, dstPid);
       const dstRef = doc(db, COL_STOCK, dstKey);
@@ -786,7 +789,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         positionId: toPositionId, productId,
         palletBarcode: dstPbc,
         slotType: "PICKING",
-        qtyUnits: 0, qtyPallets: 0,
+        qtyUnits: 1, qtyPallets: 0,
         updatedAt: serverTimestamp()
       }, { merge:true });
 
@@ -806,6 +809,10 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         destPalletBarcode: dstPbc,
         qtyUnits: qU,
         qtyPallets: qP,
+        destSlotType: "PICKING",
+        destQtyUnitsFixed: 1,
+        destQtyPalletsFixed: 0,
+        pickingIgnored: true,
       });
     });
   }
