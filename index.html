@@ -3844,7 +3844,10 @@ let codes = [];
     }
   });
 
-  /***********************
+  
+  // expose helpers for safety (module scope)
+  window.transferReplenish = transferReplenish;
+/***********************
    REGRAS FIRESTORE (colar no Firebase Console → Firestore Rules)
 
    rules_version = '2';
