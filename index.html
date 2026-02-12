@@ -818,7 +818,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     });
   }
 
-  async function moveStock(fromPositionId, toPositionId, productId, palletBarcode, units, pallets){
+  async function moveStock(fromPositionId, toPositionId, productId, palletBarcode, units, pallets, newStatus){
     const user = auth.currentUser;
     if(!user) throw new Error("Not signed in.");
     if(!canOperate(user)) throw new Error("No permission.");
@@ -841,6 +841,9 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       if(fromU < u) throw new Error("Stock insuficiente (UND) na origem.");
       if(fromP < p) throw new Error("Stock insuficiente (Pallets) na origem.");
       const fromType = fromSnap.exists() ? (fromSnap.data().slotType || "PICKING") : "PICKING";
+      const fromStatus = fromSnap.exists() ? (fromSnap.data().status || "") : "";
+      const statusToSet = (typeof newStatus === "string" && newStatus.trim() !== "") ? newStatus.trim() : fromStatus;
+      
 
       const toSnap = await tx.get(toRef);
       const toU = toSnap.exists() ? Number(toSnap.data().qtyUnits||0) : 0;
@@ -860,6 +863,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         productId,
         palletBarcode: pbc || "",
         slotType: toType,
+        status: statusToSet,
         qtyUnits: nextToU,
         qtyPallets: nextToP,
         updatedAt: serverTimestamp()
@@ -879,7 +883,8 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         productId,
         palletBarcode: pbc || "",
         qtyUnits: u,
-        qtyPallets: p
+        qtyPallets: p,
+        status: statusToSet
       });
     });
   }
@@ -2494,6 +2499,7 @@ function setupRemove(){
     const mMove=$("mMove"), mClear2=$("mClear2");
     const mMsg=$("mMsg");
     const mQtyU=$("mQtyU"), mQtyP=$("mQtyP");
+    const mStatus=$("mStatus");
 
     let fromPos=null, toPos=null, prod=null, pal=null, stock=null;
 
@@ -2501,6 +2507,7 @@ function setupRemove(){
       fromPos=toPos=prod=pal=stock=null;
       mPal.value=""; mFrom.value=""; mProd.value=""; mTo.value="";
       mTo.disabled = true;
+      if(mStatus){ mStatus.disabled = true; mStatus.innerHTML = '<option value="" selected>(keep)</option>'; }
       mMove.disabled = true;
       mMsg.innerHTML = msgBox("Pica a PALETE para carregar origem/produto.", "warn");
       mPal.focus();
@@ -2521,6 +2528,17 @@ function setupRemove(){
         mProd.value = prod.barcode || "";
         mTo.disabled = false;
         mTo.focus();
+        if(mStatus){
+          mStatus.disabled = false;
+          // carregar lista de statuses do Admin
+          ensureStatusesLoaded().then(list=>{
+            const arr = (list && list.length) ? list : DEFAULT_STATUSES;
+            mStatus.innerHTML = '<option value="" selected>(keep)</option>' + arr.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+          }).catch(()=>{
+            const arr = DEFAULT_STATUSES;
+            mStatus.innerHTML = '<option value="" selected>(keep)</option>' + arr.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+          });
+        }
         mMsg.innerHTML = msgBox(`Pallet OK • Origin <b>${esc(fromPos.code)}</b> • ${esc(prod.name)} • UND ${Number(stock.qtyUnits||0)} • Pal ${Number(stock.qtyPallets||0)}`, "ok");
         return;
       }
@@ -2549,6 +2567,16 @@ function setupRemove(){
             mProd.value = prod.barcode || "";
             mTo.disabled = false;
             mTo.focus();
+            if(mStatus){
+              mStatus.disabled = false;
+              ensureStatusesLoaded().then(list=>{
+                const arr = (list && list.length) ? list : DEFAULT_STATUSES;
+                mStatus.innerHTML = '<option value="" selected>(keep)</option>' + arr.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+              }).catch(()=>{
+                const arr = DEFAULT_STATUSES;
+                mStatus.innerHTML = '<option value="" selected>(keep)</option>' + arr.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+              });
+            }
             mMsg.innerHTML = msgBox(`Pallet OK • Origin <b>${esc(fromPos.code)}</b> • ${esc(prod.name)}`, "ok");
           };
         });
@@ -2580,7 +2608,8 @@ mMove.onclick = async ()=>{
         if(!(u>0 || p>0)) throw new Error("Sem stock na palete.");
         if(mQtyU) mQtyU.value = String(u);
         if(mQtyP) mQtyP.value = String(p);
-        await moveStock(fromPos.id, toPos.id, prod.id, pal, u, p);
+        const st = (mStatus && mStatus.value) ? mStatus.value : "";
+        await moveStock(fromPos.id, toPos.id, prod.id, pal, u, p, st);
         mMsg.innerHTML = msgBox(`✅ MOVIDO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${esc(pal)}`, "ok");
         reset();
       }catch(err){
