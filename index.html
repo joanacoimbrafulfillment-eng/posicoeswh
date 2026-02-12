@@ -518,7 +518,7 @@ const DEFAULT_ORIGINS = ["NEW","RETURNS","TRUCK","PACKED"]; // PACKED = "EMBALAD
   async function saveOrigins(origins){
     const user = auth.currentUser;
     if(!user) throw new Error("Not signed in.");
-    if(!isAdminUser(user)) throw new Error("No permission.");
+    if(!canAdmin(user)) throw new Error("No permission.");
     const clean = (origins||[]).map(x=>String(x||"").trim()).filter(Boolean);
     if(clean.length===0) throw new Error("Origins list is empty.");
     await setDoc(doc(db, COL_CONFIG, "app"), { origins: clean, updatedAt: serverTimestamp() }, { merge:true });
@@ -536,7 +536,7 @@ const state = { tab: "operacao", op:"menu", user: null, cache: { products: [], p
   function isWhUser(u){ return /@wh\.com$/.test(emailOfUser(u)); }
   function isAllowedUser(u){ return /^(joana\.coimbra\.fulfillment@gmail\.com)$/i.test(emailOfUser(u)); }
   function canOperate(u){ return !!u && (isAdminUser(u) || isWhUser(u) || isAllowedUser(u)); }
-  function canAdmin(u){ return !!u && isAdminUser(u); }
+  function canAdmin(u){ return !!u && (isAdminUser(u) || isAllowedUser(u)); }
 
   
   function displayUser(m){
@@ -1141,9 +1141,9 @@ const u = auth.currentUser;
       $("oList").value = lines.join("\n");
       $("oAdd").value = "";
     };
-    $("oReloadBtn").onclick = ()=>{ _originsCache=null; refreshOriginsUI();
+    $("oReloadBtn").onclick = ()=>{ _originsCache=null; refreshOriginsUI(); };
 
-    // Statuses (Admin) handlers
+    // ===== Statuses (Admin) handlers =====
     const sList = $("sList");
     const sAdd = $("sAdd");
     const sAddBtn = $("sAddBtn");
@@ -1155,36 +1155,36 @@ const u = auth.currentUser;
       try{
         const statuses = await ensureStatusesLoaded();
         if(sList) sList.value = statuses.join("\n");
-        if(sMsg) sMsg.innerHTML = msgBox("Loaded.", "ok");
+        if(sMsg) sMsg.innerHTML = msgBox("✅ Statuses carregados.", "ok");
       }catch(err){
-        if(sMsg) sMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
+        if(sMsg) sMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
       }
     }
 
-    if(sReloadBtn) sReloadBtn.addEventListener("click", refreshStatusesUI);
+    if(sReloadBtn) sReloadBtn.onclick = ()=>{ _statusesCache=null; refreshStatusesUI(); };
 
-    if(sAddBtn) sAddBtn.addEventListener("click", ()=>{
+    if(sAddBtn) sAddBtn.onclick = ()=>{
       const v = String(sAdd ? sAdd.value : "").trim();
       if(!v) return;
       const lines = String(sList ? sList.value : "").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
       if(lines.indexOf(v)===-1) lines.push(v);
       if(sList) sList.value = lines.join("\n");
       if(sAdd) sAdd.value = "";
-    });
+    };
 
-    if(sSaveBtn) sSaveBtn.addEventListener("click", async ()=>{
+    if(sSaveBtn) sSaveBtn.onclick = async ()=>{
       try{
         const lines = String(sList ? sList.value : "").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
         await saveStatuses(lines);
-        if(sMsg) sMsg.innerHTML = msgBox("Saved.", "ok");
+        if(sMsg) sMsg.innerHTML = msgBox("✅ Statuses guardados.", "ok");
       }catch(err){
-        if(sMsg) sMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
+        if(sMsg) sMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
       }
-    });
+    };
 
     if(sList) refreshStatusesUI();
- };
-    $("oSaveBtn").onclick = async ()=>{
+
+$("oSaveBtn").onclick = async ()=>{
       try{
         const lines = String($("oList").value||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
         await saveOrigins(lines);
