@@ -518,7 +518,7 @@ const DEFAULT_ORIGINS = ["NEW","RETURNS","TRUCK","PACKED"]; // PACKED = "EMBALAD
   async function saveOrigins(origins){
     const user = auth.currentUser;
     if(!user) throw new Error("Not signed in.");
-    if(!canAdmin(user)) throw new Error("No permission.");
+    if(!isAdminUser(user)) throw new Error("No permission.");
     const clean = (origins||[]).map(x=>String(x||"").trim()).filter(Boolean);
     if(clean.length===0) throw new Error("Origins list is empty.");
     await setDoc(doc(db, COL_CONFIG, "app"), { origins: clean, updatedAt: serverTimestamp() }, { merge:true });
@@ -536,7 +536,7 @@ const state = { tab: "operacao", op:"menu", user: null, cache: { products: [], p
   function isWhUser(u){ return /@wh\.com$/.test(emailOfUser(u)); }
   function isAllowedUser(u){ return /^(joana\.coimbra\.fulfillment@gmail\.com)$/i.test(emailOfUser(u)); }
   function canOperate(u){ return !!u && (isAdminUser(u) || isWhUser(u) || isAllowedUser(u)); }
-  function canAdmin(u){ return !!u && (isAdminUser(u) || isAllowedUser(u)); }
+  function canAdmin(u){ return !!u && isAdminUser(u); }
 
   
   function displayUser(m){
@@ -932,7 +932,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     }
 
     const mvRef = doc(collection(db, COL_MOVEMENTS));
-    batch.set(mvRef, { type:"MUDAR_TUDO", ts:serverTimestamp(), userId:user.uid, userEmail:(user.email||""), userLabel:((user.displayName||"") || (user.email||"")), fromPositionId, toPositionId });
+    batch.set(mvRef, { type:"MUDAR_TUDO", ts:serverTimestamp(), userId:user.uid, fromPositionId, toPositionId });
 
     await batch.commit();
   }
@@ -1141,9 +1141,9 @@ const u = auth.currentUser;
       $("oList").value = lines.join("\n");
       $("oAdd").value = "";
     };
-    $("oReloadBtn").onclick = ()=>{ _originsCache=null; refreshOriginsUI(); };
+    $("oReloadBtn").onclick = ()=>{ _originsCache=null; refreshOriginsUI();
 
-    // ===== Statuses (Admin) handlers =====
+    // Statuses (Admin) handlers
     const sList = $("sList");
     const sAdd = $("sAdd");
     const sAddBtn = $("sAddBtn");
@@ -1155,36 +1155,36 @@ const u = auth.currentUser;
       try{
         const statuses = await ensureStatusesLoaded();
         if(sList) sList.value = statuses.join("\n");
-        if(sMsg) sMsg.innerHTML = msgBox("✅ Statuses carregados.", "ok");
+        if(sMsg) sMsg.innerHTML = msgBox("Loaded.", "ok");
       }catch(err){
-        if(sMsg) sMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+        if(sMsg) sMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
       }
     }
 
-    if(sReloadBtn) sReloadBtn.onclick = ()=>{ _statusesCache=null; refreshStatusesUI(); };
+    if(sReloadBtn) sReloadBtn.addEventListener("click", refreshStatusesUI);
 
-    if(sAddBtn) sAddBtn.onclick = ()=>{
+    if(sAddBtn) sAddBtn.addEventListener("click", ()=>{
       const v = String(sAdd ? sAdd.value : "").trim();
       if(!v) return;
       const lines = String(sList ? sList.value : "").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
       if(lines.indexOf(v)===-1) lines.push(v);
       if(sList) sList.value = lines.join("\n");
       if(sAdd) sAdd.value = "";
-    };
+    });
 
-    if(sSaveBtn) sSaveBtn.onclick = async ()=>{
+    if(sSaveBtn) sSaveBtn.addEventListener("click", async ()=>{
       try{
         const lines = String(sList ? sList.value : "").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
         await saveStatuses(lines);
-        if(sMsg) sMsg.innerHTML = msgBox("✅ Statuses guardados.", "ok");
+        if(sMsg) sMsg.innerHTML = msgBox("Saved.", "ok");
       }catch(err){
-        if(sMsg) sMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+        if(sMsg) sMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
       }
-    };
+    });
 
     if(sList) refreshStatusesUI();
-
-$("oSaveBtn").onclick = async ()=>{
+ };
+    $("oSaveBtn").onclick = async ()=>{
       try{
         const lines = String($("oList").value||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
         await saveOrigins(lines);
@@ -2634,10 +2634,10 @@ mMove.onclick = async ()=>{
       <div class="grid two" style="margin-top:12px">
         <div class="card">
           <h2>Por Produto</h2>
-          <div class="hint">Pica o barcode do produto para ver as posições e as paletes.</div>
+          <div class="hint">Pica o NOME/SKU do produto para ver as posições e as paletes (agrupa barcodes).</div>
           <div class="row" style="margin-top:10px">
             <div class="field">
-              <label>PRODUTO (barcode)</label>
+              <label>PRODUTO (nome/SKU)</label>
               <input id="cpProd" class="mono" placeholder="Picar produto..." />
               <div class="hint" id="cpProdInfo"></div>
             </div>
@@ -2836,22 +2836,107 @@ mMove.onclick = async ()=>{
   function setupLookupProduto(){
     const inp = $("cpProd"), go = $("cpGo"), clear = $("cpClear");
     const msg = $("cpMsg"), info = $("cpProdInfo"), results = $("cpResults");
-    let prod = null;
+    let chosen = null; // {name, barcodes[]}
 
-    const reset=()=>{ prod=null; inp.value=""; info.textContent=""; msg.innerHTML=""; results.innerHTML=""; inp.focus(); };
+    const reset=()=>{ chosen=null; inp.value=""; info.textContent=""; msg.innerHTML=""; results.innerHTML=""; inp.focus(); };
 
-    async function run(){
+    // Carrega todos os produtos e agrupa por nome, juntando vários barcodes ao mesmo produto
+    async function getProductsGrouped(){
+      const snap = await getDocs(collection(db, COL_PRODUCTS));
+      const map = new Map(); // nameLower -> {name, barcodes:[], anyDoc:{}}
+      snap.forEach(d=>{
+        const p = d.data()||{};
+        const name = String(p.name||"").trim();
+        if(!name) return;
+        const key = name.toLowerCase();
+        const ent = map.get(key) || { name, barcodes:[], any:p };
+        ent.barcodes.push(d.id);
+        // mantém campos úteis do "any" se existirem
+        ent.any = ent.any || p;
+        map.set(key, ent);
+      });
+      return Array.from(map.values()).sort((a,b)=>a.name.localeCompare(b.name,"pt",{sensitivity:"base"}));
+    }
+
+    async function pickByText(txt){
+      const q = String(txt||"").trim().toLowerCase();
+      if(!q) return null;
+
+      const list = await getProductsGrouped();
+      // prioridade: match exato pelo nome
+      let hits = list.filter(p=>p.name.toLowerCase()===q);
+      // senão: contém
+      if(hits.length===0) hits = list.filter(p=>p.name.toLowerCase().includes(q));
+      if(hits.length===0){
+        // fallback: se o user colar um barcode, tentar encontrar por barcode (id do doc)
+        const snap = await getDoc(doc(db, COL_PRODUCTS, encodeKey(normalizeBarcode(q))));
+        if(snap.exists()){
+          const p = snap.data()||{};
+          const name = String(p.name||"").trim();
+          if(name) return { name, barcodes:[snap.id], any:p };
+        }
+        return null;
+      }
+      if(hits.length===1) return hits[0];
+
+      // demasiados resultados → mostrar lista para escolher
+      results.innerHTML = `
+        <div class="hint">Foram encontrados <b>${hits.length}</b> produtos. Refina a pesquisa ou escolhe um:</div>
+        <div style="overflow:auto;margin-top:8px">
+          <table>
+            <thead><tr><th>Produto</th><th>#Barcodes</th><th></th></tr></thead>
+            <tbody>
+              ${hits.slice(0,50).map((p,i)=>`
+                <tr>
+                  <td>${esc(p.name)}</td>
+                  <td><b>${p.barcodes.length}</b></td>
+                  <td><button class="btn ok" data-pick="${i}">Usar</button></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+        ${hits.length>50?`<div class="hint">A mostrar os primeiros 50. Refina a pesquisa para ver menos.</div>`:""}
+      `;
+      results.querySelectorAll("[data-pick]").forEach(btn=>{
+        btn.onclick = async ()=>{
+          const idx = Number(btn.getAttribute("data-pick"));
+          const p = hits.slice(0,50)[idx];
+          if(!p) return;
+          inp.value = p.name;
+          await run(p);
+        };
+      });
+      return "__PICKING__";
+    }
+
+    async function queryStockForBarcodes(barcodes){
+      const chunks = [];
+      const maxIn = 30; // limite do Firestore para "in"
+      for(let i=0;i<barcodes.length;i+=maxIn){
+        chunks.push(barcodes.slice(i,i+maxIn));
+      }
+      const all = [];
+      for(const ch of chunks){
+        const qy = query(collection(db, COL_STOCK), where("productId","in", ch));
+        const snap = await getDocs(qy);
+        snap.forEach(d=>all.push(d.data()));
+      }
+      return all;
+    }
+
+    async function run(preset=null){
       try{
         msg.innerHTML=""; results.innerHTML="";
-        prod = await getProductByBarcode(inp.value);
-        if(!prod) throw new Error("Produto não encontrado.");
-        info.textContent = "✅ " + (prod.name||"");
+        const sel = preset || await pickByText(inp.value);
+        if(sel==="__PICKING__") return;
+        if(!sel) throw new Error("Produto não encontrado (por nome/SKU).");
+        chosen = sel;
+        info.textContent = "✅ " + (chosen.name||"");
 
-        const qy = query(collection(db, COL_STOCK), where("productId","==", prod.id));
-        const snap = await getDocs(qy);
-        if(snap.empty){ results.innerHTML = msgBox("Sem stock em posições.", "warn"); return; }
-
-        const rows = snap.docs.map(d=>d.data()).filter(x=>(Number(x.qtyUnits||0)>0 || Number(x.qtyPallets||0)>0));
+        const rowsAll = await queryStockForBarcodes(chosen.barcodes||[]);
+        const rows = rowsAll.filter(x=>(Number(x.qtyUnits||0)>0 || Number(x.qtyPallets||0)>0));
+        if(rows.length===0){ results.innerHTML = msgBox("Sem stock em posições.", "warn"); return; }
 
         // carregar códigos das posições
         const posSnaps = await Promise.all(rows.map(r=>getDoc(doc(db, COL_POSITIONS, r.positionId))));
@@ -2886,11 +2971,11 @@ mMove.onclick = async ()=>{
             </table>
           </div>
         `;
-      }catch(err){ msg.innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+      }catch(err){ msg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err"); }
     }
 
     inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); run(); }});
-    go.onclick = run;
+    go.onclick = ()=>run();
     clear.onclick = reset;
     reset();
   }
@@ -3314,7 +3399,7 @@ async function exportStockCSV(){
         const slot = r.slotType || "";
         const u = Number(r.qtyUnits||0);
         const p = Number(r.qtyPallets||0);
-        const uid = (r.userEmail || r.userLabel || r.userId || "");
+        const uid = r.userId || "";
         const cancelled = !!r.cancelled;
 
         const hay = `${ts} ${type} ${pos} ${from} ${to} ${prod} ${pal} ${slot} ${u} ${p} ${uid}`.toLowerCase();
