@@ -932,7 +932,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     }
 
     const mvRef = doc(collection(db, COL_MOVEMENTS));
-    batch.set(mvRef, { type:"MUDAR_TUDO", ts:serverTimestamp(), userId:user.uid, fromPositionId, toPositionId });
+    batch.set(mvRef, { type:"MUDAR_TUDO", ts:serverTimestamp(), userId:user.uid, userEmail:(user.email||""), userLabel:((user.displayName||"") || (user.email||"")), fromPositionId, toPositionId });
 
     await batch.commit();
   }
@@ -3314,7 +3314,7 @@ async function exportStockCSV(){
         const slot = r.slotType || "";
         const u = Number(r.qtyUnits||0);
         const p = Number(r.qtyPallets||0);
-        const uid = r.userId || "";
+        const uid = (r.userEmail || r.userLabel || r.userId || "");
         const cancelled = !!r.cancelled;
 
         const hay = `${ts} ${type} ${pos} ${from} ${to} ${prod} ${pal} ${slot} ${u} ${p} ${uid}`.toLowerCase();
