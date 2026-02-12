@@ -932,7 +932,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     }
 
     const mvRef = doc(collection(db, COL_MOVEMENTS));
-    batch.set(mvRef, { type:"MUDAR_TUDO", ts:serverTimestamp(), userId:user.uid, fromPositionId, toPositionId });
+    batch.set(mvRef, { type:"MUDAR_TUDO", ts:serverTimestamp(), userId:user.uid, userEmail:(user.email||""), fromPositionId, toPositionId });
 
     await batch.commit();
   }
@@ -3244,7 +3244,7 @@ async function exportStockCSV(){
           </div>
           <div class="field">
             <label>Filtro (texto)</label>
-            <input id="mvFilter" placeholder="posição / produto / palete / tipo / userId" />
+            <input id="mvFilter" placeholder="posição / produto / palete / tipo / user" />
           </div>
           <div class="right">
             <button class="btn ghost" id="mvReload">Refresh</button>
@@ -3399,13 +3399,13 @@ async function exportStockCSV(){
         const slot = r.slotType || "";
         const u = Number(r.qtyUnits||0);
         const p = Number(r.qtyPallets||0);
-        const uid = r.userId || "";
+        const user = (r.userEmail || r.userLabel || r.userId || "");
         const cancelled = !!r.cancelled;
 
-        const hay = `${ts} ${type} ${pos} ${from} ${to} ${prod} ${pal} ${slot} ${u} ${p} ${uid}`.toLowerCase();
+        const hay = `${ts} ${type} ${pos} ${from} ${to} ${prod} ${pal} ${slot} ${u} ${p} ${user}`.toLowerCase();
         if(term && !hay.includes(term)) return null;
 
-        return { ...r, _ts: ts, _type:type, _pos:pos, _from:from, _to:to, _prod:prod, _pal:pal, _slot:slot, _u:u, _p:p, _uid:uid, _cancelled:cancelled };
+        return { ...r, _ts: ts, _type:type, _pos:pos, _from:from, _to:to, _prod:prod, _pal:pal, _slot:slot, _u:u, _p:p, _user:user, _cancelled:cancelled };
       }).filter(Boolean);
 
       mvTable.innerHTML = view.map(r=>`
@@ -3420,7 +3420,7 @@ async function exportStockCSV(){
           <td>${esc(r._slot || "—")}</td>
           <td><b>${r._u}</b></td>
           <td><b>${r._p}</b></td>
-          <td><span class="mono">${esc(r._uid)}</span></td>
+          <td><span class="mono">${esc(r._user)}</span></td>
           <td style="white-space:nowrap">
             <button class="btn ghost" data-act="edit" data-id="${r.id}">Editar/Anular</button>
           </td>
