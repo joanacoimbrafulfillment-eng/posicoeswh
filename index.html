@@ -1480,6 +1480,10 @@ $("pSearch").oninput = renderProductsTable;
                   <label>PALETE (nova)</label>
                   <input id="aPal" class="mono" placeholder="Gerar ou pica a palete..." disabled />
                   <div class="right" style="margin-top:8px">
+                    <label class="mini" style="display:flex;align-items:center;gap:8px">
+                      <span style="font-size:12px;color:var(--muted)">Qtd</span>
+                      <input id="aGenQty" type="number" min="1" step="1" value="1" style="width:84px" />
+                    </label>
                     <button class="btn ghost" id="aGenPal" disabled>Gerar</button>
                     <button class="btn ghost" id="aPrintPal" disabled>Imprimir</button>
                   </div>
@@ -1801,7 +1805,7 @@ $("pSearch").oninput = renderProductsTable;
 
     const opBack = document.getElementById("opBackBtn");
     if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
-    const aPos=$("aPos"), aProd=$("aProd"), aPal=$("aPal"), aType=$("aType"), aOrigin=$("aOrigin"), aStatus=$("aStatus"), aQtyU=$("aQtyU"), aQtyP=$("aQtyP"), aOk=$("aOk"), aClear=$("aClear"), aGenPal=$("aGenPal"), aPrintPal=$("aPrintPal");
+    const aPos=$("aPos"), aProd=$("aProd"), aPal=$("aPal"), aType=$("aType"), aOrigin=$("aOrigin"), aStatus=$("aStatus"), aQtyU=$("aQtyU"), aQtyP=$("aQtyP"), aOk=$("aOk"), aClear=$("aClear"), aGenQty=$("aGenQty"), aGenPal=$("aGenPal"), aPrintPal=$("aPrintPal");
     const aMsg=$("aMsg"), aPosInfo=$("aPosInfo"), aProdInfo=$("aProdInfo");
     let pos=null, prod=null;
     let ORIGINS = [];
@@ -1862,8 +1866,22 @@ try{
     aQtyP.addEventListener("input", enable);
     aQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); aOk.click(); }});
     aQtyP.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); aOk.click(); }});
-    if(aGenPal){ aGenPal.onclick = ()=>{ aPal.value = generatePalletCode(); if(aPrintPal) aPrintPal.disabled=false; enable(); }; }
-if(aPrintPal){ aPrintPal.onclick = ()=>{ const code = normalizeBarcode(aPal.value); if(!code){ aMsg.innerHTML = msgBox("Gera ou pica uma PALETE.", "warn"); return; } printPalletLabel({code, title:"PALETE", subtitle:`${aPos.value||""} • ${aProd.value||""}`}); }; }
+        let genPalletCodes = [];
+    if(aGenPal){ aGenPal.onclick = ()=>{
+      const n = Math.max(1, Math.floor(Number((aGenQty && aGenQty.value) || 1)));
+      genPalletCodes = Array.from({length:n}, ()=>generatePalletCode());
+      aPal.value = genPalletCodes[0] || "";
+      if(aPrintPal) aPrintPal.disabled = !genPalletCodes.length;
+      aMsg.innerHTML = msgBox(`✅ Geradas ${n} paletes.`, "ok");
+      enable();
+    }; }
+    if(aPrintPal){ aPrintPal.onclick = ()=>{
+      const subtitle = `${aPos.value||""} • ${aProd.value||""}`;
+      let codes = (genPalletCodes && genPalletCodes.length) ? genPalletCodes.slice() : [aPal.value];
+      codes = codes.map(c=>normalizeBarcode(c)).filter(Boolean);
+      if(!codes.length){ aMsg.innerHTML = msgBox("Gera ou pica uma PALETE.", "warn"); return; }
+      printPalletLabelsBatch({codes, title:"PALETE", subtitle});
+    }; }
 
 aOk.onclick = async ()=>{
       try{
@@ -3728,6 +3746,86 @@ async function exportStockCSV(){
     w.document.close();
   }
 
+  // Imprime várias etiquetas (1 por folha)
+  function printPalletLabelsBatch({codes, title, subtitle}){
+    const safeTitle = esc(title||"PALETE");
+    const safeSubtitle = esc(subtitle||"");
+    const list = (codes||[]).map(c=>String(c||"")).filter(Boolean);
+    if(!list.length){
+      sgBox("Nada para imprimir.", "warn");
+      return;
+    }
+
+    // Use an iframe for reliable printing (avoids blank popups on some browsers)
+    let frame = document.getElementById("printFrame");
+    if(!frame){
+      frame = document.createElement("iframe");
+      frame.id = "printFrame";
+      frame.style.position = "fixed";
+      frame.style.right = "0";
+      frame.style.bottom = "0";
+      frame.style.width = "0";
+      frame.style.height = "0";
+      frame.style.border = "0";
+      frame.style.opacity = "0";
+      document.body.appendChild(frame);
+    }
+
+    const pages = list.map((c,i)=>`<div class="page">
+      <div class="box">
+        <h1>${safeTitle}</h1>
+        <div class="sub">${safeSubtitle}</div>
+        <svg id="b${i}"></svg>
+        <div class="code">${esc(c)}</div>
+      </div>
+    </div>`).join("");
+
+    const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Etiquetas Palete</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:18px}
+  .page{page-break-after:always;break-after:page}
+  .page:last-child{page-break-after:auto;break-after:auto}
+  .box{border:1px solid #111;padding:14px;border-radius:14px;max-width:520px}
+  h1{font-size:18px;margin:0 0 6px}
+  .sub{color:#333;margin:0 0 10px}
+  .code{font-family:ui-monospace,Menlo,Consolas,monospace;margin-top:8px}
+  @media print { body{margin:0} .box{border:none} }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+</head>
+<body>
+  ${pages}
+<script>
+  (function(){
+    const codes = ${JSON.stringify(list)};
+    function go(){
+      for(let i=0;i<codes.length;i++){
+        try{
+          JsBarcode("#b"+i, codes[i], {format:"CODE128", lineColor:"#111", width:2, height:80, displayValue:true, fontSize:14, margin:10});
+        }catch(e){}
+      }
+      setTimeout(()=>{ try{ window.focus(); window.print(); }catch(e){} }, 150);
+    }
+    // Wait a moment for JsBarcode to load in the iframe
+    setTimeout(go, 200);
+  })();
+<\/script>
+</body>
+</html>`;
+
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+  }
+
+
+
+
   function renderPallets(){
     const u = auth.currentUser;
     viewEl.innerHTML = `
@@ -3784,7 +3882,11 @@ async function exportStockCSV(){
 
       <div class="card" style="margin-top:12px">
         <h2 style="margin:0 0 8px">Códigos gerados</h2>
-        <div class="hint">Toca/clica num código para copiar. Usa “Imprimir” para etiqueta.</div>
+        <div class="row" style="align-items:center;gap:10px">
+          <div class="hint">Toca/clica num código para copiar. Usa “Imprimir” para uma etiqueta, ou imprime tudo (1 por folha).</div>
+          <div class="spacer"></div>
+          <button class="btn ok" id="pltPrintAll" disabled>Imprimir tudo (1/folha)</button>
+        </div>
         <div id="pltList" style="margin-top:10px;display:grid;gap:12px"></div>
       </div>
     `;
@@ -3800,6 +3902,7 @@ async function exportStockCSV(){
     const btn = $("pltGen");
     const msg = $("pltMsg");
     const list = $("pltList");
+    const printAll = $("pltPrintAll");
 
     
     // Reimprimir
@@ -3841,6 +3944,14 @@ let codes = [];
           }
         };
       });
+
+      if(printAll){
+        printAll.disabled = !(codes && codes.length);
+        printAll.onclick = ()=>{
+          if(!(codes && codes.length)) return;
+          printPalletLabelsBatch({codes, title: title.value || "PALETE", subtitle: sub.value || ""});
+        };
+      }
 
       list.querySelectorAll("[data-print]").forEach(b=>{
         b.onclick = ()=>{
