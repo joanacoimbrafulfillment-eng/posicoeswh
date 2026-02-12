@@ -492,7 +492,7 @@
     _statusesCache = clean;
     return clean;
   }
-const DEFAULT_ORIGINS = ["NEW","RETURNS","PACKED"]; // PACKED = "EMBALADO"
+const DEFAULT_ORIGINS = ["NEW","RETURNS","TRUCK","PACKED"]; // PACKED = "EMBALADO"
   let _originsCache = null;
 
   async function loadOrigins(){
@@ -534,7 +534,8 @@ const state = { tab: "operacao", op:"menu", user: null, cache: { products: [], p
   }
   function isAdminUser(u){ return /@admin\.com$/.test(emailOfUser(u)); }
   function isWhUser(u){ return /@wh\.com$/.test(emailOfUser(u)); }
-  function canOperate(u){ return !!u && (isAdminUser(u) || isWhUser(u)); }
+  function isAllowedUser(u){ return /^(joana\.coimbra\.fulfillment@gmail\.com)$/i.test(emailOfUser(u)); }
+  function canOperate(u){ return !!u && (isAdminUser(u) || isWhUser(u) || isAllowedUser(u)); }
   function canAdmin(u){ return !!u && isAdminUser(u); }
 
   
@@ -1795,9 +1796,10 @@ $("pSearch").oninput = renderProductsTable;
 
     const opBack = document.getElementById("opBackBtn");
     if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
-    const aPos=$("aPos"), aProd=$("aProd"), aPal=$("aPal"), aType=$("aType"), aOrigin=$("aOrigin"), aStatus=$("aStatus"), aQtyU=$("aQtyU"), aQtyP=$("aQtyP"), aOk=$("aOk"), aClear=$("aClear");
+    const aPos=$("aPos"), aProd=$("aProd"), aPal=$("aPal"), aType=$("aType"), aOrigin=$("aOrigin"), aStatus=$("aStatus"), aQtyU=$("aQtyU"), aQtyP=$("aQtyP"), aOk=$("aOk"), aClear=$("aClear"), aGenPal=$("aGenPal"), aPrintPal=$("aPrintPal");
     const aMsg=$("aMsg"), aPosInfo=$("aPosInfo"), aProdInfo=$("aProdInfo");
     let pos=null, prod=null;
+    let ORIGINS = [];
 
     const reset=()=>{
       pos=prod=null; aPos.value=""; aProd.value=""; aPal.value=""; aQtyU.value=""; aQtyP.value="";
@@ -1808,7 +1810,9 @@ $("pSearch").oninput = renderProductsTable;
     const enable=()=>{
       const u=Math.floor(Number(aQtyU.value||0));
       const p=Math.floor(Number(aQtyP.value||0));
-      aOk.disabled=!(pos && prod && (u>0 || p>0) && (aOrigin.value==="NEW" || aOrigin.value==="RETURNS"));
+      const origin=(aOrigin && aOrigin.value||"").trim();
+      const originOk = !!origin && (!ORIGINS.length || ORIGINS.indexOf(origin) !== -1);
+      aOk.disabled=!(pos && prod && (u>0 || p>0) && originOk);
     };
 
         async function resolvePos(){
@@ -1822,8 +1826,10 @@ try{
     }
 
     aPos.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePos(); }});
+    aPos.addEventListener("change", ()=>{ if(aPos.value){ resolvePos(); }});
+    aPos.addEventListener("blur", ()=>{ if(aPos.value){ resolvePos(); }});
     const aPosOk=$("aPosOk"); if(aPosOk) aPosOk.addEventListener("click", ()=>resolvePos());
-aProd.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDefault();
+    async function resolveProd(){
       try{
         prod = await getProductByBarcode(aProd.value);
         if(!prod) throw new Error("Produto não encontrado.");
@@ -1836,9 +1842,17 @@ aProd.addEventListener("keydown", async (e)=>{ if(e.key==="Enter"){ e.preventDef
         aPal.focus(); aMsg.innerHTML="";
         enable();
       }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
-    }});
+    }
+
+    aProd.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolveProd(); }});
+    aProd.addEventListener("change", ()=>{ if(aProd.value){ resolveProd(); }});
+    aProd.addEventListener("blur", ()=>{ if(aProd.value){ resolveProd(); }});
 
     aPal.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); aQtyU.focus(); }});
+    if(aOrigin) aOrigin.addEventListener("change", enable);
+    if(aType) aType.addEventListener("change", enable);
+    if(aStatus) aStatus.addEventListener("change", enable);
+    if(aPal) aPal.addEventListener("input", enable);
     aQtyU.addEventListener("input", enable);
     aQtyP.addEventListener("input", enable);
     aQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); aOk.click(); }});
@@ -1851,7 +1865,9 @@ aOk.onclick = async ()=>{
         const qtyU=Math.floor(Number(aQtyU.value||0));
         const qtyP=Math.floor(Number(aQtyP.value||0));
         const origin=(aOrigin.value||"").trim();
-        if(!(origin==="NEW" || origin==="RETURNS")) throw new Error("Seleciona a ORIGEM (NEW/RETURNS).");
+        if(!origin || (ORIGINS.length && ORIGINS.indexOf(origin)===-1)){
+          throw new Error("Seleciona a ORIGEM (" + (ORIGINS.length ? ORIGINS.join("/") : "configurar no Admin") + ").");
+        }
         if(!(pos && prod && (qtyU>0 || qtyP>0))) throw new Error("Falta QTD (UND e/ou Pallets).");
         await addStock(pos.id, prod.id, aPal.value, aType.value, qtyU, qtyP, origin);
         aMsg.innerHTML = msgBox(`✅ OK • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(aType.value)} • ${esc(origin)} • +${qtyU} UND • +${qtyP} Pal`, "ok");
@@ -1866,9 +1882,11 @@ aOk.onclick = async ()=>{
     
     async function populateOrigins(){
       const origins = await ensureOriginsLoaded();
+      ORIGINS = (origins||[]).map(x=>String(x||"").trim()).filter(Boolean);
       if(aOrigin){
-        aOrigin.innerHTML = origins.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("");
+        aOrigin.innerHTML = ORIGINS.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("");
       }
+      enable();
     }
 
     async function populateStatuses(){
@@ -3843,7 +3861,10 @@ let codes = [];
     }
   });
 
-  /***********************
+  
+  // expose helpers for safety (module scope)
+  window.transferReplenish = transferReplenish;
+/***********************
    REGRAS FIRESTORE (colar no Firebase Console → Firestore Rules)
 
    rules_version = '2';
