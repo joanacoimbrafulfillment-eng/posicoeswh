@@ -685,7 +685,11 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
 
       let nextU = curU + dU;
       let nextP = curP + dP;
-      if(pickingFixedOne){ nextU = 1; nextP = 0; }
+      if(pickingFixedOne){
+        nextU = 1;
+        nextP = curP + dP;
+        if(nextP < 0) throw new Error("Stock insuficiente (PAL).");
+      }
 
       if(!pickingFixedOne){
         if(nextU < 0) throw new Error("Stock insuficiente (UND).");
@@ -724,8 +728,8 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         qtyUnitsRequested: Math.abs(dU),
         qtyPalletsRequested: Math.abs(dP),
         qtyUnitsApplied: pickingFixedOne ? 1 : Math.abs(dU),
-        qtyPalletsApplied: pickingFixedOne ? 0 : Math.abs(dP),
-        pickingIgnored: pickingFixedOne,
+        qtyPalletsApplied: Math.abs(dP),
+        pickingIgnoredUnits: pickingFixedOne,
         pickingFixed: pickingFixedOne,
         origin: ((dU>=0 || dP>=0) && (org==="NEW"||org==="RETURNS")) ? org : "",
       });
@@ -742,7 +746,6 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       palletBarcode: pbc || "",
       slotType: "PICKING",
       qtyUnits: 1,
-      qtyPallets: 0,
       updatedAt: serverTimestamp()
     }, { merge:true });
   }
@@ -786,11 +789,16 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       const dstPid = palletIdFromBarcode(dstPbc);
       const dstKey = stockKey(toPositionId, productId, dstPid);
       const dstRef = doc(db, COL_STOCK, dstKey);
+      const dstSnap = await tx.get(dstRef);
+      const curDstP = dstSnap.exists() ? Number(dstSnap.data().qtyPallets || 0) : 0;
+      const nextDstP = curDstP + qP;
+      if(nextDstP < 0) throw new Error("Stock insuficiente (PAL) no destino.");
       tx.set(dstRef, {
         positionId: toPositionId, productId,
         palletBarcode: dstPbc,
         slotType: "PICKING",
-        qtyUnits: 1, qtyPallets: 0,
+        qtyUnits: 1,
+        qtyPallets: nextDstP,
         updatedAt: serverTimestamp()
       }, { merge:true });
 
@@ -812,8 +820,8 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         qtyPallets: qP,
         destSlotType: "PICKING",
         destQtyUnitsFixed: 1,
-        destQtyPalletsFixed: 0,
-        pickingIgnored: true,
+        destQtyPalletsAfter: nextDstP,
+        pickingIgnoredUnits: true,
       });
     });
   }
@@ -2791,6 +2799,10 @@ mMove.onclick = async ()=>{
         <h2 style="margin:0 0 6px">Stock by product</h2>
         <div class="hint">Totais separados por <b>COMPLETA</b> e <b>PICKING</b>.</div>
 
+        <div class="row" style="margin-top:10px;gap:10px;flex-wrap:wrap">
+          <div class="pill" id="stTotals" style="padding:10px 12px;border:1px solid var(--stroke);border-radius:999px;background:var(--surface2)">A calcular totais…</div>
+        </div>
+
         <div class="row" style="margin-top:10px;align-items:flex-end">
           <div class="field" style="flex:1;min-width:200px">
             <label>Search</label>
@@ -2816,11 +2828,20 @@ mMove.onclick = async ()=>{
       </div>
     `;
 
-    const stQ=$("stQ"), stReload=$("stReload"), stExport=$("stExport"), stBody=$("stBody"), stMsg=$("stMsg");
+    const stQ=$("stQ"), stReload=$("stReload"), stExport=$("stExport"), stBody=$("stBody"), stMsg=$("stMsg"), stTotals=$("stTotals");
     let all = [];
     async function load(){
       stMsg.innerHTML = msgBox("A carregar…", "warn");
       all = await computeStockTotalsByProduct();
+      // Totais gerais no separador Stock
+      try{
+        if(stTotals){
+          const g = await computeGlobalTotals();
+          stTotals.innerHTML = `<b>Total Paletes:</b> ${Number(g.totalPallets||0)} &nbsp; · &nbsp; <b>Total UND:</b> ${Number(g.totalUnits||0)} &nbsp; · &nbsp; <b>Total Produtos:</b> ${Number(all.length||0)}`;
+        }
+      }catch(e){
+        if(stTotals) stTotals.innerHTML = `<span class="err">❌ Totais: ${esc(e.message||e)}</span>`;
+      }
       stMsg.innerHTML = msgBox(`✅ ${all.length} produto(s).`, "ok");
       draw();
     }
@@ -3230,6 +3251,20 @@ async function exportStockCSV(){
     return rows;
   }
 
+  async function computeGlobalTotals(){
+    const stockSnap = await getDocs(collection(db, COL_STOCK));
+    let totalUnits = 0;
+    let totalPallets = 0;
+    stockSnap.forEach(d=>{
+      const x = d.data() || {};
+      totalUnits += Number(x.qtyUnits||0);
+      totalPallets += Number(x.qtyPallets||0);
+    });
+    return { totalUnits, totalPallets, rows: stockSnap.size };
+  }
+
+
+
   async function exportTotalsCSV(){
     const rows = await computeTotalsByProduct();
     const header = ["produto","barcode","qtyUnitsTotal","qtyPalletsTotal"].join(";");
@@ -3270,6 +3305,15 @@ async function exportStockCSV(){
           </div>
         </div>
         <div id="mvMsg"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2 style="margin:0 0 8px">Totais gerais</h2>
+        <div class="hint">Total de paletes registadas no sistema (soma de <code>qtyPallets</code> em todos os registos de stock). UND é a soma de <code>qtyUnits</code>.</div>
+        <div class="row" style="margin-top:10px">
+          <div id="grandTotals" class="hint">A carregar...</div>
+          <div class="right"><button class="btn ghost" id="grandReload">Refresh</button></div>
+        </div>
       </div>
 
       <div class="card" style="margin-top:12px">
@@ -3351,6 +3395,9 @@ async function exportStockCSV(){
     const mvFilter = $("mvFilter");
     const mvExport = $("mvExport");
 
+    const grandTotals = $("grandTotals");
+    const grandReload = $("grandReload");
+
     const modal = $("mvModal");
     const editU = $("mvEditU");
     const editP = $("mvEditP");
@@ -3384,9 +3431,22 @@ async function exportStockCSV(){
     btnClose.onclick = closeModal;
     modal.addEventListener("click", (e)=>{ if(e.target === modal) closeModal(); });
 
-    async function load(){
+    
+    async function loadGrandTotals(){
+      try{
+        if(!grandTotals) return;
+        grandTotals.textContent = "A carregar...";
+        const g = await computeGlobalTotals();
+        grandTotals.innerHTML = `<b>Total Paletes:</b> ${Number(g.totalPallets||0)} &nbsp; · &nbsp; <b>Total UND:</b> ${Number(g.totalUnits||0)} &nbsp; · &nbsp; <span class="muted">${Number(g.rows||0)} registos</span>`;
+      }catch(e){
+        if(grandTotals) grandTotals.innerHTML = `<span class="err">❌ ${esc(e.message||e)}</span>`;
+      }
+    }
+
+async function load(){
       mvMsg.innerHTML = "";
       mvTable.innerHTML = `<tr><td colspan="12">A carregar...</td></tr>`;
+      await loadGrandTotals();
       const n = Number(mvLimit.value||100);
 
       // Movements precisam de leitura para operadores também (ver rules abaixo)
@@ -3404,7 +3464,13 @@ async function exportStockCSV(){
       const prodSnaps = await Promise.all(prodIds.map(id=>getDoc(doc(db, COL_PRODUCTS, id))));
 
       const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? (posSnaps[i].data().code || id) : id]));
-      const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? (prodSnaps[i].data().name || id) : id]));
+      // Prod info: name + barcode (for search by barcode/SKU)
+      const prodInfoMap = new Map(prodIds.map((id,i)=>{
+        if(!prodSnaps[i].exists()) return [id, { name:id, barcode:"" }];
+        const d = prodSnaps[i].data() || {};
+        return [id, { name:(d.name||id), barcode:(d.barcode||"") }];
+      }));
+      const prodMap = new Map(prodIds.map(id=>[id, (prodInfoMap.get(id)?.name || id)]));
 
       const view = rows.map(r=>{
         const ts = r.ts.toDate ? r.ts.toDate().toLocaleString() : "";
@@ -3413,6 +3479,8 @@ async function exportStockCSV(){
         const from = posMap.get(r.fromPositionId) || "";
         const to = posMap.get(r.toPositionId) || "";
         const prod = prodMap.get(r.productId) || "";
+        const prodBarcode = (r.productId ? (prodInfoMap.get(r.productId)?.barcode || "") : "");
+        const prodNameInline = (r.productName || r.product || r.productLabel || "");
         const pal = r.palletBarcode || "";
         const slot = r.slotType || "";
         const u = Number(r.qtyUnits||0);
@@ -3420,7 +3488,7 @@ async function exportStockCSV(){
         const user = (r.userEmail || r.userLabel || r.userId || "");
         const cancelled = !!r.cancelled;
 
-        const hay = `${ts} ${type} ${pos} ${from} ${to} ${prod} ${pal} ${slot} ${u} ${p} ${user}`.toLowerCase();
+        const hay = `${ts} ${type} ${pos} ${from} ${to} ${prod} ${prodNameInline} ${prodBarcode} ${pal} ${slot} ${u} ${p} ${user}`.toLowerCase();
         if(term && !hay.includes(term)) return null;
 
         return { ...r, _ts: ts, _type:type, _pos:pos, _from:from, _to:to, _prod:prod, _pal:pal, _slot:slot, _u:u, _p:p, _user:user, _cancelled:cancelled };
@@ -3455,6 +3523,7 @@ async function exportStockCSV(){
     }
 
     mvReload.onclick = load;
+    if(grandReload) grandReload.onclick = loadGrandTotals;
     mvLimit.onchange = load;
     mvFilter.oninput = load;
 
@@ -3478,7 +3547,8 @@ async function exportStockCSV(){
 
         await cancelMovement(mv.id, why);
         editMsg.innerHTML = msgBox("✅ Movimento anulado (stock revertido).", "ok");
-        await load();
+        setupTotaisProduto();
+    await load();
       }catch(e){
         editMsg.innerHTML = msgBox("❌ " + esc(e.message||e), "err");
       }
