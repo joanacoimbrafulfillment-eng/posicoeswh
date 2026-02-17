@@ -756,20 +756,28 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     if(!canOperate(user)) throw new Error("No permission.");
 
     const srcPbc = normalizeBarcode(srcPallet);
-    const dstPbc = normalizeBarcode(dstPallet);
+    let dstPbc = normalizeBarcode(dstPallet);
     if(!srcPbc) throw new Error("Falta palete de origem.");
-    if(!dstPbc) throw new Error("Falta palete de destino.");
+    // Destino (PICKING): se não indicar palete, cria uma palete virtual por produto
+    if(!dstPbc) dstPbc = "PICK-"+String(productId||"").slice(0,20);
 
     const srcPid = palletIdFromBarcode(srcPbc);
     const srcKey = stockKey(fromPositionId, productId, srcPid);
     const srcRef = doc(db, COL_STOCK, srcKey);
+
+    // destino PICKING (palete virtual)
+    const dstPid = palletIdFromBarcode(dstPbc);
+    const dstKey = stockKey(toPositionId, productId, dstPid);
+    const dstRef = doc(db, COL_STOCK, dstKey);
 
     const qU = Math.floor(Number(qtyUnits||0));
     const qP = Math.floor(Number(qtyPallets||0));
     if(!(qU>0 || qP>0)) throw new Error("Falta quantidade.");
 
     await runTransaction(db, async (tx)=>{
-      const snap = await tx.get(srcRef);
+      // ✅ Firestore: todas as leituras ANTES de quaisquer escritas
+      const [snap, dstSnap] = await Promise.all([tx.get(srcRef), tx.get(dstRef)]);
+
       if(!snap.exists()) throw new Error("Pallet de origem não existe no stock.");
       const curU = Number(snap.data().qtyUnits||0);
       const curP = Number(snap.data().qtyPallets||0);
@@ -779,20 +787,19 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       if(nextU < 0) throw new Error("Stock insuficiente (UND).");
       if(nextP < 0) throw new Error("Stock insuficiente (Pallets).");
 
+      // ler destino (já lido acima) e calcular paletes
+      const curDstP = dstSnap.exists() ? Number(dstSnap.data().qtyPallets || 0) : 0;
+      const nextDstP = curDstP + qP;
+      if(nextDstP < 0) throw new Error("Stock insuficiente (PAL) no destino.");
+
+      // === Escritas (depois das leituras) ===
       if(nextU===0 && nextP===0){
         tx.delete(srcRef);
       }else{
         tx.set(srcRef, { qtyUnits: nextU, qtyPallets: nextP, updatedAt: serverTimestamp() }, { merge:true });
       }
 
-      // destino PICKING: manter sempre 1 UND (palete virtual de picking)
-      const dstPid = palletIdFromBarcode(dstPbc);
-      const dstKey = stockKey(toPositionId, productId, dstPid);
-      const dstRef = doc(db, COL_STOCK, dstKey);
-      const dstSnap = await tx.get(dstRef);
-      const curDstP = dstSnap.exists() ? Number(dstSnap.data().qtyPallets || 0) : 0;
-      const nextDstP = curDstP + qP;
-      if(nextDstP < 0) throw new Error("Stock insuficiente (PAL) no destino.");
+      // destino PICKING: manter sempre 1 UND
       tx.set(dstRef, {
         positionId: toPositionId, productId,
         palletBarcode: dstPbc,
@@ -809,8 +816,6 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         userId: user.uid,
         userEmail: (user.email||""),
         userLabel: ((user.email||"").split("@")[0]||""),
-        userEmail: (user.email||""),
-        userLabel: ((user.email||"").split("@")[0]||""),
         fromPositionId,
         toPositionId,
         productId,
@@ -825,6 +830,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       });
     });
   }
+
 
   async function moveStock(fromPositionId, toPositionId, productId, palletBarcode, units, pallets, newStatus){
     const user = auth.currentUser;
