@@ -535,8 +535,8 @@ const state = { tab: "operacao", op:"menu", user: null, cache: { products: [], p
   function isAdminUser(u){ return /@admin\.com$/.test(emailOfUser(u)); }
   function isWhUser(u){ return /@wh\.com$/.test(emailOfUser(u)); }
   function isAllowedUser(u){ return /^(joana\.coimbra\.fulfillment@gmail\.com)$/i.test(emailOfUser(u)); }
-  function canOperate(u){ return !!u && (isAdminUser(u) || isWhUser(u) || isAllowedUser(u)); }
-  function canAdmin(u){ return !!u && isAdminUser(u); }
+  function canOperate(u){ return !!u && (isAdminUser(auth.currentUser) || isWhUser(u) || isAllowedUser(u)); }
+  function canAdmin(u){ return !!u && isAdminUser(auth.currentUser); }
 
   
   function displayUser(m){
@@ -664,7 +664,6 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     const user = auth.currentUser;
     if(!user) throw new Error("Not signed in.");
     if(!canOperate(user)) throw new Error("No permission.");
-
     const palletId = palletIdFromBarcode(palletBarcode);
     const key = stockKey(positionId, productId, palletId);
     const ref = doc(db, COL_STOCK, key);
@@ -712,7 +711,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
 
       const mvRef = doc(collection(db, COL_MOVEMENTS));
       tx.set(mvRef, {
-        type: (dU >= 0 || dP >= 0) ? "ARRUMAR" : "RETIRAR",
+        type: (dP < 0 && dU === 0) ? "REMOVER" : ((dU > 0 || dP > 0) ? "ARRUMAR" : "RETIRAR"),
         ts: serverTimestamp(),
         userId: user.uid,
         userEmail: (user.email||""),
@@ -3342,7 +3341,7 @@ async function exportStockCSV(){
           <thead>
             <tr>
               <th>Data</th><th>Tipo</th><th>Location</th><th>Origin</th><th>Destino</th>
-              <th>Produto</th><th>Pallet</th><th>Tipo Slot</th><th>UND</th><th>Pal</th><th>User</th><th></th>
+              <th>Produto</th><th>Pallet</th><th>Tipo Slot</th><th>UND</th><th>Pal</th><th>User</th>
             </tr>
           </thead>
           <tbody id="mvTable"></tbody>
@@ -3380,9 +3379,9 @@ async function exportStockCSV(){
               </div>
               <div id="mvEditMsg"></div>
               <div class="right" style="margin-top:10px">
-                <button class="btn danger" id="mvCancelBtn">Anular (reverter stock)</button>
-                <button class="btn ok" id="mvSaveBtn">Guardar edição</button>
-                <button class="btn ghost" id="mvCloseBtn">Fechar</button>
+                <button class="btn danger" id="mvCancelBtn" type="button">Anular (reverter stock)</button>
+                <button class="btn ok" id="mvSaveBtn" type="button">Guardar edição</button>
+                <button class="btn ghost" id="mvCloseBtn" type="button">Fechar</button>
               </div>
             </div>
           </div>
@@ -3424,7 +3423,7 @@ async function exportStockCSV(){
       editP.value = Number(mv.qtyPallets||0);
       editSlot.value = ""; // manter por defeito
       // bloquear MUDAR_TUDO e outros
-      const allowed = ["ARRUMAR","RETIRAR","MUDAR"].includes((mv.type||"").toUpperCase()) && !mv.cancelled;
+      const allowed = isAdminUser(auth.currentUser) && ["ARRUMAR","RETIRAR","MUDAR"].includes((mv.type||"").toUpperCase()) && !mv.cancelled;
       btnSave.disabled = !allowed;
       btnCancel.disabled = !allowed;
       modal.style.display = "block";
@@ -3434,7 +3433,7 @@ async function exportStockCSV(){
       current = null;
     }
 
-    btnClose.onclick = closeModal;
+    btnClose.onclick = (ev)=>{ ev?.preventDefault?.(); ev?.stopPropagation?.(); closeModal(); };
     modal.addEventListener("click", (e)=>{ if(e.target === modal) closeModal(); });
 
     
@@ -3451,7 +3450,7 @@ async function exportStockCSV(){
 
 async function load(){
       mvMsg.innerHTML = "";
-      mvTable.innerHTML = `<tr><td colspan="12">A carregar...</td></tr>`;
+      mvTable.innerHTML = `<tr><td colspan="11">A carregar...</td></tr>`;
       await loadGrandTotals();
       const n = Number(mvLimit.value||100);
 
@@ -3512,12 +3511,12 @@ async function load(){
           <td>${esc(r._slot || "—")}</td>
           <td><b>${r._u}</b></td>
           <td><b>${r._p}</b></td>
-          <td><span class="mono">${esc(r._user)}</span></td>
-          <td style="white-space:nowrap">
-            <button class="btn ghost" data-act="edit" data-id="${r.id}">Editar/Anular</button>
+          <td>
+            <span class="mono">${esc(r._user)}</span>
+            ${isAdminUser(auth.currentUser) ? "<div style=\"margin-top:6px\"><button class=\"btn ghost\" data-act=\"edit\" data-id=\"" + r.id + "\">Editar/Anular</button></div>" : ""}
           </td>
         </tr>
-      `).join("") || `<tr><td colspan="12">Sem resultados.</td></tr>`;
+      `).join("") || `<tr><td colspan="11">Sem resultados.</td></tr>`;
 
       mvTable.querySelectorAll("button[data-act='edit']").forEach(b=>{
         b.onclick = ()=>{
@@ -3543,7 +3542,7 @@ async function load(){
       }
     };
 
-    btnCancel.onclick = async ()=>{
+    btnCancel.onclick = async (ev)=>{ ev?.preventDefault?.(); ev?.stopPropagation?.();
       try{
         if(!current) return;
         const mv = current;
@@ -3560,7 +3559,7 @@ async function load(){
       }
     };
 
-    btnSave.onclick = async ()=>{
+    btnSave.onclick = async (ev)=>{ ev?.preventDefault?.(); ev?.stopPropagation?.();
       try{
         if(!current) return;
         const mv = current;
@@ -3589,11 +3588,12 @@ async function load(){
   async function cancelMovement(mvId, reason){
     const user = auth.currentUser;
     if(!user) throw new Error("Not signed in.");
-    if(!canOperate(user)) throw new Error("No permission.");
+    if(!isAdminUser(user)) throw new Error("No permission.");
 
     const mvRef = doc(db, COL_MOVEMENTS, mvId);
 
     await runTransaction(db, async (tx)=>{
+      // 1) READS (all)
       const mvSnap = await tx.get(mvRef);
       if(!mvSnap.exists()) throw new Error("Movimento não existe.");
       const mv = mvSnap.data();
@@ -3601,10 +3601,8 @@ async function load(){
       const type = (mv.type||"").toUpperCase();
       if(!["ARRUMAR","RETIRAR","MUDAR"].includes(type)) throw new Error("Não suportado para anular.");
 
-      // marcar movimento como anulado (preserva histórico)
-      tx.set(mvRef, { cancelled:true, cancelledAt:serverTimestamp(), cancelledBy:user.uid, cancelReason:reason }, {merge:true});
+      const writes = []; // functions(tx) to execute after reads
 
-      // reverter stock
       if(type==="ARRUMAR"){
         const pos = mv.positionId, prod = mv.productId, pal = mv.palletBarcode||"", slot = mv.slotType||"PICKING";
         const u = Number(mv.qtyUnits||0), p = Number(mv.qtyPallets||0);
@@ -3615,8 +3613,11 @@ async function load(){
         const nextU = curU - u;
         const nextP = curP - p;
         if(nextU < 0 || nextP < 0) throw new Error("Não dá para anular: stock insuficiente.");
-        if(nextU===0 && nextP===0) tx.delete(stockRef);
-        else tx.set(stockRef, { qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+
+        writes.push((tx)=>{
+          if(nextU===0 && nextP===0) tx.delete(stockRef);
+          else tx.set(stockRef, { qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+        });
       }else if(type==="RETIRAR"){
         const pos = mv.positionId, prod = mv.productId, pal = mv.palletBarcode||"", slot = mv.slotType||"PICKING";
         const u = Number(mv.qtyUnits||0), p = Number(mv.qtyPallets||0);
@@ -3626,7 +3627,10 @@ async function load(){
         const curP = snap.exists()? Number(snap.data().qtyPallets||0):0;
         const nextU = curU + u;
         const nextP = curP + p;
-        tx.set(stockRef, { positionId:pos, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:slot, qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+
+        writes.push((tx)=>{
+          tx.set(stockRef, { positionId:pos, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:slot, qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+        });
       }else if(type==="MUDAR"){
         const from = mv.fromPositionId, to = mv.toPositionId, prod = mv.productId, pal = mv.palletBarcode||"";
         const u = Number(mv.qtyUnits||0), p = Number(mv.qtyPallets||0);
@@ -3641,31 +3645,37 @@ async function load(){
         if(toU < u || toP < p) throw new Error("Não dá para anular: destino sem stock suficiente.");
         const nextToU = toU - u;
         const nextToP = toP - p;
-        if(nextToU===0 && nextToP===0) tx.delete(toRef);
-        else tx.set(toRef, { qtyUnits:nextToU, qtyPallets:nextToP, updatedAt:serverTimestamp() }, {merge:true});
 
         const fromSnap = await tx.get(fromRef);
         const fromU = fromSnap.exists()? Number(fromSnap.data().qtyUnits||0):0;
         const fromP = fromSnap.exists()? Number(fromSnap.data().qtyPallets||0):0;
         const fromType = fromSnap.exists()? (fromSnap.data().slotType||toType) : toType;
 
-        tx.set(fromRef, { positionId:from, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:fromType, qtyUnits:fromU + u, qtyPallets:fromP + p, updatedAt:serverTimestamp() }, {merge:true});
+        writes.push((tx)=>{
+          if(nextToU===0 && nextToP===0) tx.delete(toRef);
+          else tx.set(toRef, { qtyUnits:nextToU, qtyPallets:nextToP, updatedAt:serverTimestamp() }, {merge:true});
+          tx.set(fromRef, { positionId:from, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:fromType, qtyUnits:fromU + u, qtyPallets:fromP + p, updatedAt:serverTimestamp() }, {merge:true});
+        });
       }
 
-      // registar ação (opcional) como novo movimento do tipo "ANULACAO"
+      // 2) WRITES (after all reads)
+      tx.set(mvRef, { cancelled:true, cancelledAt:serverTimestamp(), cancelledBy:user.uid, cancelledByEmail:(user.email||""), cancelReason:reason }, {merge:true});
+      for(const w of writes) w(tx);
+
       const mv2Ref = doc(collection(db, COL_MOVEMENTS));
-      tx.set(mv2Ref, { type:"ANULACAO", ts:serverTimestamp(), userId:user.uid, refMovementId:mvId, reason }, {merge:true});
+      tx.set(mv2Ref, { type:"ANULACAO", ts:serverTimestamp(), userId:user.uid, userEmail:(user.email||""), refMovementId:mvId, reason }, {merge:true});
     });
   }
 
   async function editMovement(mvId, patch, reason){
     const user = auth.currentUser;
     if(!user) throw new Error("Not signed in.");
-    if(!canOperate(user)) throw new Error("No permission.");
+    if(!isAdminUser(user)) throw new Error("No permission.");
 
     const mvRef = doc(db, COL_MOVEMENTS, mvId);
 
     await runTransaction(db, async (tx)=>{
+      // 1) READS (all)
       const mvSnap = await tx.get(mvRef);
       if(!mvSnap.exists()) throw new Error("Movimento não existe.");
       const mv = mvSnap.data();
@@ -3678,19 +3688,8 @@ async function load(){
       const dU = newU - oldU;
       const dP = newP - oldP;
 
-      // atualizar movimento (guardar snapshot anterior)
-      tx.set(mvRef, {
-        edited:true,
-        editedAt:serverTimestamp(),
-        editedBy:user.uid,
-        editReason:reason,
-        prev: { qtyUnits:oldU, qtyPallets:oldP, slotType: mv.slotType || "" },
-        qtyUnits:newU,
-        qtyPallets:newP,
-        ...(patch.slotType ? { slotType: patch.slotType } : {})
-      }, {merge:true});
+      const writes = [];
 
-      // ajustar stock pela diferença
       if(type==="ARRUMAR"){
         const pos = mv.positionId, prod = mv.productId, pal = mv.palletBarcode||"";
         const slot = patch.slotType ? patch.slotType : (mv.slotType||"PICKING");
@@ -3701,52 +3700,77 @@ async function load(){
         const nextU = curU + dU;
         const nextP = curP + dP;
         if(nextU < 0 || nextP < 0) throw new Error("Edição inválida: stock ficaria negativo.");
-        if(nextU===0 && nextP===0) tx.delete(stockRef);
-        else tx.set(stockRef, { positionId:pos, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:slot, qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+
+        writes.push((tx)=>{
+          if(nextU===0 && nextP===0) tx.delete(stockRef);
+          else tx.set(stockRef, { positionId:pos, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:slot, qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+        });
       }else if(type==="RETIRAR"){
-        // retirar: movimento representa saída; stock foi diminuído por old; ajustar por -d (se d é +, retira mais)
         const pos = mv.positionId, prod = mv.productId, pal = mv.palletBarcode||"";
         const slot = patch.slotType ? patch.slotType : (mv.slotType||"PICKING");
         const stockRef = doc(db, COL_STOCK, stockKey(pos, prod, palletIdFromBarcode(pal)));
         const snap = await tx.get(stockRef);
         const curU = snap.exists()? Number(snap.data().qtyUnits||0):0;
         const curP = snap.exists()? Number(snap.data().qtyPallets||0):0;
-        const nextU = curU - dU;
+        const nextU = curU - dU; // retirar: movimento retirou stock, ajustar inversamente
         const nextP = curP - dP;
-        if(nextU < 0 || nextP < 0) throw new Error("Edição inválida: stock insuficiente.");
-        if(nextU===0 && nextP===0) tx.delete(stockRef);
-        else tx.set(stockRef, { qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp(), slotType:slot }, {merge:true});
+        if(nextU < 0 || nextP < 0) throw new Error("Edição inválida: stock ficaria negativo.");
+
+        writes.push((tx)=>{
+          if(nextU===0 && nextP===0) tx.delete(stockRef);
+          else tx.set(stockRef, { positionId:pos, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:slot, qtyUnits:nextU, qtyPallets:nextP, updatedAt:serverTimestamp() }, {merge:true});
+        });
       }else if(type==="MUDAR"){
         const from = mv.fromPositionId, to = mv.toPositionId, prod = mv.productId, pal = mv.palletBarcode||"";
         const palId = palletIdFromBarcode(pal);
-
         const fromRef = doc(db, COL_STOCK, stockKey(from, prod, palId));
         const toRef = doc(db, COL_STOCK, stockKey(to, prod, palId));
 
-        // mudança: aplicar diferença em ambos (se new > old, tirar mais de origem e pôr mais em destino)
+        // Para MUDAR: editar ajusta a diferença entre novo e antigo (dU/dP) movida do from->to.
+        // Ou seja: se aumentares unidades, tens de tirar mais do FROM e pôr mais no TO.
         const fromSnap = await tx.get(fromRef);
         const fromU = fromSnap.exists()? Number(fromSnap.data().qtyUnits||0):0;
         const fromP = fromSnap.exists()? Number(fromSnap.data().qtyPallets||0):0;
-        /* handled by nextFrom<0 check */
-        const nextFromU = fromU - dU;
-        const nextFromP = fromP - dP;
-        if(nextFromU < 0 || nextFromP < 0) throw new Error("Edição inválida: origem sem stock.");
-        if(nextFromU===0 && nextFromP===0) tx.delete(fromRef);
-        else tx.set(fromRef, { qtyUnits:nextFromU, qtyPallets:nextFromP, updatedAt:serverTimestamp() }, {merge:true});
+        const fromType = fromSnap.exists()? (fromSnap.data().slotType||"PICKING") : "PICKING";
 
         const toSnap = await tx.get(toRef);
         const toU = toSnap.exists()? Number(toSnap.data().qtyUnits||0):0;
         const toP = toSnap.exists()? Number(toSnap.data().qtyPallets||0):0;
+        const toType = toSnap.exists()? (toSnap.data().slotType||fromType) : fromType;
+
+        const nextFromU = fromU - dU;
+        const nextFromP = fromP - dP;
         const nextToU = toU + dU;
         const nextToP = toP + dP;
-        if(nextToU < 0 || nextToP < 0) throw new Error("Edição inválida: destino ficaria negativo.");
-        if(nextToU===0 && nextToP===0) tx.delete(toRef);
-        else tx.set(toRef, { positionId:to, productId:prod, palletBarcode:normalizeBarcode(pal), qtyUnits:nextToU, qtyPallets:nextToP, updatedAt:serverTimestamp() }, {merge:true});
+
+        if(nextFromU < 0 || nextFromP < 0 || nextToU < 0 || nextToP < 0) throw new Error("Edição inválida: stock ficaria negativo.");
+
+        writes.push((tx)=>{
+          if(nextFromU===0 && nextFromP===0) tx.delete(fromRef);
+          else tx.set(fromRef, { positionId:from, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:fromType, qtyUnits:nextFromU, qtyPallets:nextFromP, updatedAt:serverTimestamp() }, {merge:true});
+
+          if(nextToU===0 && nextToP===0) tx.delete(toRef);
+          else tx.set(toRef, { positionId:to, productId:prod, palletBarcode:normalizeBarcode(pal), slotType:toType, qtyUnits:nextToU, qtyPallets:nextToP, updatedAt:serverTimestamp() }, {merge:true});
+        });
       }
 
-      // registar ação
+      // 2) WRITES (after all reads)
+      tx.set(mvRef, {
+        edited:true,
+        editedAt:serverTimestamp(),
+        editedBy:user.uid,
+        editedByEmail:(user.email||""),
+        editReason:reason,
+        prev: { qtyUnits:oldU, qtyPallets:oldP, slotType: mv.slotType || "" },
+        qtyUnits:newU,
+        qtyPallets:newP,
+        ...(patch.slotType ? { slotType: patch.slotType } : {})
+      }, {merge:true});
+
+      for(const w of writes) w(tx);
+
       const mv2Ref = doc(collection(db, COL_MOVEMENTS));
-      tx.set(mv2Ref, { type:"EDICAO", ts:serverTimestamp(), userId:user.uid, refMovementId:mvId, reason, qtyUnits:newU, qtyPallets:newP }, {merge:true});
+      tx.set(mv2Ref, { type:"EDICAO", ts:serverTimestamp(), userId:user.uid, userEmail:(user.email||""), refMovementId:mvId, reason }, {merge:true});
     });
   }
 
