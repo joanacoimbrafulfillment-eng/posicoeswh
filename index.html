@@ -425,8 +425,7 @@
   import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
   import {
     getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit, updateDoc,
-    writeBatch, runTransaction, serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    writeBatch, runTransaction, serverTimestamp, arrayUnion, arrayRemove} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -434,7 +433,8 @@
 
   // ===== Coleções =====
   const COL_PRODUCTS = "products";
-  const COL_POSITIONS = "positions";
+    const COL_PRODUCT_BARCODES = "productBarcodes";
+const COL_POSITIONS = "positions";
   const COL_STOCK = "stockItems";
   const COL_MOVEMENTS = "movements";
   const COL_CONFIG = "config";
@@ -565,6 +565,21 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     const b64 = btoa(bin);
     return b64.replace(/=+$/,"").replace(/\+/g,"-").replace(/\//g,"_");
   }
+
+  // ===== Produto canónico por NOME (1 produto pode ter vários barcodes) =====
+  function normalizeProductName(name){
+    return String(name||"")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"") // remove acentos
+      .replace(/\s+/g," ");
+  }
+  function productIdFromName(name){
+    const key = normalizeProductName(name);
+    if(!key) return "";
+    return encodeKey(key);
+  }
+
   function palletIdFromBarcode(palletBarcode){
     const b = normalizeBarcode(palletBarcode);
     return b ? encodeKey(b) : "nopallet";
@@ -574,8 +589,45 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
   async function getProductByBarcode(barcode){
     const b = normalizeBarcode(barcode);
     if(!b) return null;
-    const snap = await getDoc(doc(db, COL_PRODUCTS, encodeKey(b)));
-    return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
+    const bKey = encodeKey(b);
+
+    // 1) Novo: map barcode -> produto canónico
+    const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, bKey));
+    if(mapSnap.exists()){
+      const pid = mapSnap.data().productId;
+      const pSnap = await getDoc(doc(db, COL_PRODUCTS, pid));
+      return pSnap.exists() ? ({ id: pid, ...pSnap.data() }) : null;
+    }
+
+    // 2) Legacy: products/{barcodeKey}
+    const legacySnap = await getDoc(doc(db, COL_PRODUCTS, bKey));
+    if(!legacySnap.exists()) return null;
+
+    const legacy = ({ id: legacySnap.id, ...legacySnap.data() });
+    const name = legacy.name || "";
+    const pid = productIdFromName(name) || legacy.id;
+
+    // Migração "lazy": criar produto canónico + mapping (sem apagar legacy)
+    if(pid && pid !== legacy.id){
+      await setDoc(doc(db, COL_PRODUCTS, pid), {
+        name: String(name||"").trim(),
+        nameKey: normalizeProductName(name),
+        barcodes: arrayUnion(b),
+        updatedAt: serverTimestamp()
+      }, { merge:true });
+
+      await setDoc(doc(db, COL_PRODUCT_BARCODES, bKey), {
+        barcode: b,
+        productId: pid,
+        name: String(name||"").trim(),
+        updatedAt: serverTimestamp()
+      }, { merge:true });
+
+      const pSnap = await getDoc(doc(db, COL_PRODUCTS, pid));
+      return pSnap.exists() ? ({ id: pid, ...pSnap.data() }) : legacy;
+    }
+
+    return legacy;
   }
   async function getPositionByBarcode(barcode){
     const b = normalizeBarcode(barcode);
@@ -619,8 +671,27 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
 
   async function upsertProduct({name, barcode}){
     const b = normalizeBarcode(barcode);
-    if(!name || !b) throw new Error("Nome e barcode são obrigatórios.");
-    await setDoc(doc(db, COL_PRODUCTS, encodeKey(b)), { name: name.trim(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
+    const nm = String(name||"").trim();
+    if(!nm || !b) throw new Error("Nome e barcode são obrigatórios.");
+
+    const pid = productIdFromName(nm);
+    if(!pid) throw new Error("Nome inválido.");
+
+    // produto canónico por nome
+    await setDoc(doc(db, COL_PRODUCTS, pid), {
+      name: nm,
+      nameKey: normalizeProductName(nm),
+      barcodes: arrayUnion(b),
+      updatedAt: serverTimestamp()
+    }, { merge:true });
+
+    // mapping barcode -> produto
+    await setDoc(doc(db, COL_PRODUCT_BARCODES, encodeKey(b)), {
+      barcode: b,
+      productId: pid,
+      name: nm,
+      updatedAt: serverTimestamp()
+    }, { merge:true });
   }
   async function upsertPosition({code, barcode}){
     const b = normalizeBarcode(barcode);
@@ -1220,7 +1291,21 @@ const u = auth.currentUser;
 
         const batch = writeBatch(db);
         imported.forEach(item=>{
-          batch.set(doc(db, COL_PRODUCTS, encodeKey(item.barcode)), {name:item.name, barcode:item.barcode, updatedAt:serverTimestamp()}, {merge:true});
+          const pid = productIdFromName(item.name);
+          // produto canónico por nome
+          batch.set(doc(db, COL_PRODUCTS, pid), {
+            name: item.name,
+            nameKey: normalizeProductName(item.name),
+            barcodes: arrayUnion(item.barcode),
+            updatedAt: serverTimestamp()
+          }, {merge:true});
+          // mapping barcode -> produto
+          batch.set(doc(db, COL_PRODUCT_BARCODES, encodeKey(item.barcode)), {
+            barcode: item.barcode,
+            productId: pid,
+            name: item.name,
+            updatedAt: serverTimestamp()
+          }, {merge:true});
         });
         await batch.commit();
         $("pMsg").innerHTML = msgBox(`✅ Importados/atualizados <b>${imported.length}</b> produtos.`, "ok");
@@ -1287,42 +1372,67 @@ $("pSearch").oninput = renderProductsTable;
     function renderProductsTable(){
       const term = ($("pSearch").value||"").toLowerCase().trim();
       const list = state.cache.products.filter(p=>{
-        const n=(p.name||"").toLowerCase();
-        const b=normalizeBarcode(p.barcode).toLowerCase();
-        return !term || n.includes(term) || b.includes(term);
+        const n = (p.name||"").toLowerCase();
+        const bars = Array.isArray(p.barcodes) ? p.barcodes : (p.barcode ? [p.barcode] : []);
+        const btxt = bars.map(x=>String(x||"").toLowerCase()).join(" ");
+        return !term || n.includes(term) || btxt.includes(term);
       });
 
-      $("pTable").innerHTML = list.map(p=>`
+      $("pTable").innerHTML = list.map(p=>{
+        const bars = Array.isArray(p.barcodes) ? p.barcodes : (p.barcode ? [p.barcode] : []);
+        const bShow = bars.join(", ");
+        return `
         <tr>
-          <td><input data-id="${p.id}" data-k="name" value="${esc(p.name||"")}" /></td>
-          <td><input class="mono" data-id="${p.id}" data-k="barcode" value="${esc(p.barcode||"")}" /></td>
-          <td style="white-space:nowrap">
-            <button class="btn ghost" data-act="save" data-id="${p.id}">Guardar</button>
-            <button class="btn danger" data-act="del" data-id="${p.id}">Apagar</button>
+          <td><input value="${esc(p.name||"")}" data-id="${esc(p.id)}" class="pEditName" /></td>
+          <td><input value="${esc(bShow)}" data-id="${esc(p.id)}" class="pEditBarcode" placeholder="Adicionar barcode e guardar" /></td>
+          <td class="right" style="white-space:nowrap">
+            <button class="btn ghost pDel" data-id="${esc(p.id)}">Apagar</button>
           </td>
-        </tr>
-      `).join("") || `<tr><td colspan="3">Sem produtos.</td></tr>`;
+        </tr>`;
+      }).join("");
 
-      $("pTable").querySelectorAll("button").forEach(btn=>{
-        btn.onclick = async ()=>{
-          const id = btn.dataset.id, act = btn.dataset.act;
+      // editar nome (produto canónico)
+      document.querySelectorAll(".pEditName").forEach(inp=>{
+        inp.onchange = async ()=>{
           try{
-            if(act==="del"){
-              if(!confirm("Apagar produto?")) return;
-              await deleteDoc(doc(db, COL_PRODUCTS, id));
-              await loadAdminLists(); renderProductsTable();
-              $("pMsg").innerHTML = msgBox("✅ Apagado.", "ok");
-            }else{
-              const name = $("pTable").querySelector(`input[data-id="${id}"][data-k="name"]`).value.trim();
-              const barcode = normalizeBarcode($("pTable").querySelector(`input[data-id="${id}"][data-k="barcode"]`).value);
-              if(!name || !barcode) throw new Error("Nome e barcode obrigatórios.");
-              const newId = encodeKey(barcode);
-              await setDoc(doc(db, COL_PRODUCTS, newId), {name, barcode, updatedAt:serverTimestamp()}, {merge:true});
-              if(newId !== id) await deleteDoc(doc(db, COL_PRODUCTS, id));
-              await loadAdminLists(); renderProductsTable();
-              $("pMsg").innerHTML = msgBox("✅ Guardado.", "ok");
-            }
+            const id = inp.dataset.id;
+            const nm = String(inp.value||"").trim();
+            if(!nm) return;
+            // manter id; apenas atualizar nome
+            await setDoc(doc(db, COL_PRODUCTS, id), { name:nm, nameKey: normalizeProductName(nm), updatedAt: serverTimestamp() }, {merge:true});
+            await loadAdminLists(); renderProductsTable();
           }catch(err){ $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+        };
+      });
+
+      // adicionar barcode (escreve no mapping e adiciona ao array barcodes)
+      document.querySelectorAll(".pEditBarcode").forEach(inp=>{
+        inp.onchange = async ()=>{
+          try{
+            const id = inp.dataset.id;
+            const raw = String(inp.value||"");
+            const parts = raw.split(",").map(x=>normalizeBarcode(x)).filter(Boolean);
+            if(parts.length===0) return;
+            const b = parts[parts.length-1]; // último barcode introduzido
+            await setDoc(doc(db, COL_PRODUCTS, id), { barcodes: arrayUnion(b), updatedAt: serverTimestamp() }, {merge:true});
+            await setDoc(doc(db, COL_PRODUCT_BARCODES, encodeKey(b)), { barcode:b, productId:id, name: state.cache.products.find(p=>p.id===id)?.name || "", updatedAt: serverTimestamp() }, {merge:true});
+            await loadAdminLists(); renderProductsTable();
+          }catch(err){ $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+        };
+      });
+
+      document.querySelectorAll(".pDel").forEach(btn=>{
+        btn.onclick = async (ev)=>{
+          ev.preventDefault(); ev.stopPropagation();
+          try{
+            const id = btn.dataset.id;
+            if(!confirm("Apagar produto?")) return;
+            await deleteDoc(doc(db, COL_PRODUCTS, id));
+            await loadAdminLists(); renderProductsTable();
+            $("pMsg").innerHTML = msgBox("✅ Apagado.", "ok");
+          }catch(err){
+            $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err");
+          }
         };
       });
     }
@@ -1954,10 +2064,23 @@ reset();
 
     const s = snap.docs[0].data();
     const prodId = s.productId;
-    const prodSnap = await getDoc(doc(db, COL_PRODUCTS, prodId));
-    const product = prodSnap.exists() ? ({ id:prodId, ...prodSnap.data() }) : ({ id:prodId, name:prodId, barcode:"" });
+    let product = null;
+    let canonicalId = prodId;
 
-    return { ok:true, pbc, productId:prodId, product, stock:s };
+    let prodSnap = await getDoc(doc(db, COL_PRODUCTS, prodId));
+    if(prodSnap.exists()){
+      product = ({ id: prodId, ...prodSnap.data() });
+    }else{
+      const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, prodId));
+      if(mapSnap.exists()){
+        canonicalId = mapSnap.data().productId;
+        const p2 = await getDoc(doc(db, COL_PRODUCTS, canonicalId));
+        if(p2.exists()) product = ({ id: canonicalId, ...p2.data(), legacyId: prodId });
+      }
+      if(!product) product = ({ id: prodId, name: prodId, barcodes:[] });
+    }
+
+    return { ok:true, pbc, productId:prodId, productCanonicalId: (product && product.id) ? product.id : prodId, product, stock:s };
   }
 
   async function resolvePalletGlobal(palletBarcode){
@@ -1978,10 +2101,28 @@ reset();
     const prodIds = [...new Set(docs.map(x=>x.productId).filter(Boolean))];
 
     const posSnaps = await Promise.all(posIds.map(id=>getDoc(doc(db, COL_POSITIONS, id))));
-    const prodSnaps = await Promise.all(prodIds.map(id=>getDoc(doc(db, COL_PRODUCTS, id))));
-
+    // Resolve products (canonical by name; supports legacy productId stored as barcodeKey)
     const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? ({id, ...posSnaps[i].data()}) : ({id, code:id}) ]));
-    const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? ({id, ...prodSnaps[i].data()}) : ({id, name:id, barcode:""}) ]));
+
+    const prodMap = new Map();
+    for(const id of prodIds){
+      let pSnap = await getDoc(doc(db, COL_PRODUCTS, id));
+      if(pSnap.exists()){
+        prodMap.set(id, {id, ...pSnap.data()});
+        continue;
+      }
+      // legacy: stock productId may be barcodeKey -> mapping in productBarcodes/{barcodeKey}
+      const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, id));
+      if(mapSnap.exists()){
+        const pid = mapSnap.data().productId;
+        const p2 = await getDoc(doc(db, COL_PRODUCTS, pid));
+        if(p2.exists()){
+          prodMap.set(id, {id:pid, ...p2.data(), legacyId:id});
+          continue;
+        }
+      }
+      prodMap.set(id, {id, name:id, barcodes:[]});
+    }
 
     const rows = docs.map(s=>{
       const pos = posMap.get(s.positionId) || {id:s.positionId, code:s.positionId};
@@ -1992,7 +2133,7 @@ reset();
     // If more than 1, return list to choose
     if(rows.length > 1) return { ok:false, reason:"multiplo", pbc, rows };
 
-    return { ok:true, pbc, ...rows[0] };
+    return { ok:true, pbc, productCanonicalId: (rows[0].product && rows[0].product.id) ? rows[0].product.id : (rows[0].stock && rows[0].stock.productId), ...rows[0] };
   }
 
 
@@ -2227,7 +2368,7 @@ function setupRemove(){
     async function handleDestinoPallet(code){
       const res = await resolvePalletGlobal(code);
       if(res.ok){
-        if(res.product && res.product.id && prod && res.product.id !== prod.id){
+        if(res.product && prod && ((res.productCanonicalId || res.product.id) !== (prod.productCanonicalId || prod.id))){
           setMsg("A palete destino é de outro produto. Usa uma palete destino do mesmo produto.", "err");
           palTo = null;
           if(rpToPalInfo) rpToPalInfo.textContent = "";
@@ -3154,11 +3295,19 @@ mMove.onclick = async ()=>{
     const rows = snap.docs.map(d=>({id:d.id, ...d.data()}))
       .sort((a,b)=>(a.name||"").localeCompare(b.name||"", "pt", {sensitivity:"base"}));
 
+    // Export: one line per barcode (A=produto, B=barcode)
     const header = ["produto","barcode"].join(";");
-    const lines = rows.map(r=>[
-      csvEscape(r.name || ""),
-      csvEscape(sanitizeBarcodeExport(r.barcode || ""))
-    ].join(";"));
+    const lines = [];
+    rows.forEach(r=>{
+      const bars = Array.isArray(r.barcodes) ? r.barcodes : (r.barcode ? [r.barcode] : []);
+      if(bars.length===0){
+        lines.push([csvEscape(r.name||""), ""].join(";"));
+      }else{
+        bars.forEach(b=>{
+          lines.push([csvEscape(r.name||""), csvEscape(sanitizeBarcodeExport(b||""))].join(";"));
+        });
+      }
+    });
 
     downloadTextFile(`produtos_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
   }
