@@ -2862,56 +2862,99 @@ mMove.onclick = async ()=>{
     };
   }
 
-  async function computeStockTotalsByProduct(){
-    const snap = await getDocs(query(collection(db, COL_STOCK), limit(2000)));
-    const map = new Map(); // productId -> {completeU,completeP,pickingU,pickingP, palletsComplete:Set, palletsPicking:Set}
-    snap.forEach(d=>{
-      const x = d.data() || {};
-      const pid = x.productId || "";
-      if(!pid) return;
-      const slot = String(x.slotType||"PICKING").toUpperCase();
-      const u = Number(x.qtyUnits||0);
-      const p = Number(x.qtyPallets||0);
-      const pal = normalizeBarcode(x.palletBarcode||"");
-      if(!map.has(pid)){
-        map.set(pid, { completeU:0, completeP:0, pickingU:0, pickingP:0, palletsComplete:new Set(), palletsPicking:new Set() });
-      }
-      const t = map.get(pid);
-      if(slot==="COMPLETA"){
-        t.completeU += u;
-        t.completeP += p;
-        if(pal) t.palletsComplete.add(pal);
-      }else{
-        t.pickingU += u;
-        t.pickingP += p;
-        if(pal) t.palletsPicking.add(pal);
-      }
-    });
+    async function computeStockTotalsByProduct(){
+      const snap = await getDocs(query(collection(db, COL_STOCK), limit(2000)));
 
-    // load products to map barcode/name
-    const prodSnap = await getDocs(query(collection(db, COL_PRODUCTS), limit(3000)));
-    const prodMap = new Map();
-    prodSnap.forEach(d=> prodMap.set(d.id, ({ id:d.id, ...d.data() })));
-
-    const rows = [];
-    map.forEach((t, pid)=>{
-      const pr = prodMap.get(pid) || { name:"", barcode:"" };
-      rows.push({
-        productId: pid,
-        name: pr.name || "",
-        barcode: pr.barcode || "",
-        UND_COMPLETA: t.completeU,
-        PAL_COMPLETA: t.completeP,
-        N_PALETES_COMPLETA: t.palletsComplete.size,
-        UND_PICKING: t.pickingU,
-        PAL_PICKING: t.pickingP,
-        N_PALETES_PICKING: t.palletsPicking.size
+      // 1) carregar produtos
+      const prodSnap = await getDocs(query(collection(db, COL_PRODUCTS), limit(3000)));
+      const prodMap = new Map();
+      prodSnap.forEach(d=>{
+        const p = d.data() || {};
+        prodMap.set(d.id, ({ id:d.id, ...p }));
       });
-    });
 
-    rows.sort((a,b)=> (a.name||"").localeCompare(b.name||"") || (a.barcode||"").localeCompare(b.barcode||""));
-    return rows;
-  }
+      function getProductBarcodes(p){
+        const bars = Array.isArray(p?.barcodes) ? p.barcodes : (p?.barcode ? [p.barcode] : []);
+        return bars.filter(Boolean);
+      }
+
+      // 2) Agregar por PRODUTO CANÓNICO (derivado do nome), não por barcode/productId
+      // canonicalId -> {name, barcodes:Set, completeU,completeP,pickingU,pickingP,palletsComplete:Set,palletsPicking:Set}
+      const map = new Map();
+
+      for(const d of snap.docs){
+        const x = d.data() || {};
+        const rawPid = x.productId || "";
+        if(!rawPid) continue;
+
+        // tenta ir buscar produto diretamente
+        let pr = prodMap.get(rawPid);
+
+        // fallback “legacy”: se o stock tiver productId como barcodeKey, tenta mapping em COL_PRODUCT_BARCODES
+        if(!pr){
+          try{
+            const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, rawPid));
+            if(mapSnap.exists()){
+              const canonicalPid = mapSnap.data().productId;
+              pr = prodMap.get(canonicalPid) || pr;
+            }
+          }catch(_e){}
+        }
+
+        const name = String(pr?.name || "").trim() || rawPid;
+        const canonicalId = productIdFromName(name) || rawPid;
+
+        if(!map.has(canonicalId)){
+          map.set(canonicalId, {
+            name,
+            barcodes: new Set(),
+            completeU:0, completeP:0,
+            pickingU:0, pickingP:0,
+            palletsComplete:new Set(),
+            palletsPicking:new Set()
+          });
+        }
+
+        const t = map.get(canonicalId);
+
+        // acumular barcodes conhecidos do produto
+        for(const b of getProductBarcodes(pr)) t.barcodes.add(b);
+
+        const slot = String(x.slotType||"PICKING").toUpperCase();
+        const u = Number(x.qtyUnits||0);
+        const p = Number(x.qtyPallets||0);
+        const pal = normalizeBarcode(x.palletBarcode||"");
+
+        if(slot==="COMPLETA"){
+          t.completeU += u;
+          t.completeP += p;
+          if(pal) t.palletsComplete.add(pal);
+        }else{
+          t.pickingU += u;
+          t.pickingP += p;
+          if(pal) t.palletsPicking.add(pal);
+        }
+      }
+
+      // 3) construir rows (1 linha por produto canónico)
+      const rows = [];
+      map.forEach((t, canonicalId)=>{
+        rows.push({
+          productId: canonicalId,
+          name: t.name,
+          barcode: Array.from(t.barcodes).join(", "),
+          UND_COMPLETA: t.completeU,
+          PAL_COMPLETA: t.completeP,
+          N_PALETES_COMPLETA: t.palletsComplete.size,
+          UND_PICKING: t.pickingU,
+          PAL_PICKING: t.pickingP,
+          N_PALETES_PICKING: t.palletsPicking.size
+        });
+      });
+
+      rows.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+      return rows;
+    }
 
   function toCSVSemicolon(rows){
     const headers = ["produto","barcode","UND_COMPLETA","PAL_COMPLETA","N_PALETES_COMPLETA","UND_PICKING","PAL_PICKING","N_PALETES_PICKING"];
