@@ -2862,18 +2862,35 @@ mMove.onclick = async ()=>{
     };
   }
 
-    async function computeStockTotalsByProduct(){
-      const snap = await getDocs(query(collection(db, COL_STOCK), limit(2000)));
-
-      // 1) carregar produtos
+    
+  // ---- CACHES (reduz leituras no Firestore) ----
+  let __productsMapPromise = null;
+  async function getProductsMapCached(){
+    if(__productsMapPromise) return __productsMapPromise;
+    __productsMapPromise = (async ()=>{
       const prodSnap = await getDocs(query(collection(db, COL_PRODUCTS), limit(3000)));
       const prodMap = new Map();
       prodSnap.forEach(d=>{
         const p = d.data() || {};
         prodMap.set(d.id, ({ id:d.id, ...p }));
       });
+      return prodMap;
+    })();
+    return __productsMapPromise;
+  }
 
-      function getProductBarcodes(p){
+  // Cache do snapshot de stock para evitar leituras repetidas (ex.: totais gerais)
+  let __stockSnapPromise = null;
+
+  async function computeStockTotalsByProduct(){
+      const snap = await getDocs(query(collection(db, COL_STOCK), limit(2000)));
+      // reutilizar este snapshot para totais gerais (evita uma 2ª leitura)
+      __stockSnapPromise = Promise.resolve(snap);
+
+// 1) carregar produtos (cache)
+      const prodMap = await getProductsMapCached();
+
+function getProductBarcodes(p){
         const bars = Array.isArray(p?.barcodes) ? p.barcodes : (p?.barcode ? [p.barcode] : []);
         return bars.filter(Boolean);
       }
@@ -3449,7 +3466,12 @@ async function exportStockCSV(){
   }
 
   async function computeGlobalTotals(){
-    const stockSnap = await getDocs(collection(db, COL_STOCK));
+    // Usa cache do snapshot de stock quando disponível; caso contrário carrega 1x e reutiliza.
+    if(!__stockSnapPromise){
+      __stockSnapPromise = getDocs(query(collection(db, COL_STOCK), limit(2000)));
+    }
+    const stockSnap = await __stockSnapPromise;
+
     let totalUnits = 0;
     let totalPallets = 0;
     stockSnap.forEach(d=>{
