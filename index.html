@@ -168,171 +168,6 @@
   .row{ gap: 10px; }
   .hint{ font-size: 13px; line-height: 1.3; }
 }
-
-  :root{
-    --bg:#f6f7fb;
-    --surface:#ffffff;
-    --surface2:#fbfbfe;
-    --stroke:rgba(20,24,33,.12);
-    --text:#101624;
-    --muted:#5b677a;
-    --accent:#1f8a70;   /* verde/teal */
-    --ok:#178f63;
-    --danger:#d64545;
-    --warn:#b88300;
-    --radius:16px;
-  }
-  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-  body{margin:0;background:linear-gradient(180deg,var(--bg),#ffffff);color:var(--text)}
-  header{position:sticky;top:0;z-index:10;background:rgba(246,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--stroke)}
-  .wrap{max-width:1100px;margin:0 auto;padding:12px 14px}
-  h1{margin:0;font-size:15px;letter-spacing:.2px}
-  h2{margin:0 0 8px;font-size:16px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .spacer{flex:1}
-  .tabs{display:flex;gap:8px;flex-wrap:wrap}
-  .tabbtn{
-    border:1px solid var(--stroke);
-    background:#ffffff;
-    color:var(--text);
-    padding:10px 12px;
-    border-radius:999px;
-    cursor:pointer;
-    font-weight:700;
-    letter-spacing:.2px;
-  }
-  .tabbtn.active{
-    border-color:rgba(31,138,112,.55);
-    box-shadow:0 0 0 3px rgba(31,138,112,.14) inset;
-    background:rgba(31,138,112,.10);
-  }
-  .card{
-    background:var(--surface);
-    border:1px solid var(--stroke);
-    border-radius:var(--radius);
-    padding:14px;
-    box-shadow:0 8px 28px rgba(16,22,36,.06);
-  }
-  .card.soft{background:var(--surface2)}
-  .grid{display:grid;gap:12px}
-  @media(min-width:980px){ .grid.two{grid-template-columns:1fr 1fr} }
-  label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
-  input,select{
-    width:100%; padding:12px 12px; border-radius:14px;
-    background:#ffffff;
-    border:1px solid rgba(20,24,33,.18);
-    color:var(--text); outline:none;
-  }
-  input:focus, select:focus{border-color:rgba(31,138,112,.55); box-shadow:0 0 0 3px rgba(31,138,112,.14)}
-  .btn{
-    padding:12px 12px;border-radius:14px;border:1px solid rgba(20,24,33,.16);
-    background:rgba(31,138,112,.12);color:var(--text);cursor:pointer;
-    font-weight:800;
-  }
-  .btn:hover{filter:brightness(1.03)}
-  .btn.ok{background:rgba(23,143,99,.14)}
-  .btn.ghost{background:#ffffff}
-  .btn.danger{background:rgba(214,69,69,.12)}
-  .hint{font-size:12px;color:var(--muted);line-height:1.45}
-  .msg{margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(20,24,33,.14);background:rgba(16,22,36,.03);font-size:13px}
-  .msg.ok{border-color:rgba(23,143,99,.28); background:rgba(23,143,99,.08)}
-  .msg.err{border-color:rgba(214,69,69,.28); background:rgba(214,69,69,.08)}
-  .msg.warn{border-color:rgba(184,131,0,.28); background:rgba(184,131,0,.08)}
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-  .right{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-  .pill{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(16,22,36,.03);border:1px solid rgba(20,24,33,.12);font-size:12px}
-  .divider{height:1px;background:rgba(20,24,33,.10);margin:12px 0}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{border-bottom:1px solid rgba(20,24,33,.10);padding:10px 8px;text-align:left;vertical-align:top}
-  th{font-size:12px;color:var(--muted);font-weight:800;position:sticky;top:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px)}
-  code{background:rgba(16,22,36,.05);padding:2px 6px;border-radius:8px}
-  .step{
-    display:flex;gap:10px;align-items:flex-start;
-    padding:10px 12px;border-radius:16px;border:1px dashed rgba(20,24,33,.18);
-    background:rgba(16,22,36,.02);
-    margin-top:10px;
-  }
-  .step .n{
-    width:26px;height:26px;border-radius:999px;
-    display:flex;align-items:center;justify-content:center;
-    background:rgba(31,138,112,.12);border:1px solid rgba(31,138,112,.25);
-    font-weight:900;color:var(--accent);
-  }
-  .step .t{font-weight:850}
-  .step .d{font-size:12px;color:var(--muted);line-height:1.35;margin-top:2px}
-  @media(max-width:820px){
-    .wrap{max-width:720px}
-    .tabbtn{padding:12px 14px;font-size:16px}
-    input,select{padding:14px 14px;font-size:16px}
-    .btn{padding:14px 14px;font-size:16px}
-    .field{min-width:100% !important}
-    th{position:static}
-  }
-  .field{flex:1;min-width:220px}
-
-  /* ===== Operação (Mobile-first) ===== */
-  .opMobile .row{align-items:stretch}
-  .opMobile .right{justify-content:stretch}
-  .opMobile .right .btn{flex:1}
-  .opMobile .btn{min-height:48px}
-  .opMobile input, .opMobile select{min-height:48px}
-  .opMobile .hint{font-size:13px}
-  .opMobile h2{font-size:18px}
-  .opMobile label{font-size:13px}
-  .opMobile .card{padding:14px}
-  .opMobile .step{border-style:solid}
-  @media(max-width:820px){
-    .opMobile .row{flex-direction:column;gap:10px}
-    .opMobile .field{min-width:100% !important}
-    .opMobile .btn{width:100%}
-    .opMobile input, .opMobile select{font-size:18px}
-    .opMobile .tabbtn{font-size:16px}
-    .opMobile .card{border-radius:18px}
-  }
-
-
-  /* ===== Operação Mobile: menu + ecrã único ===== */
-  .opMenuGrid{display:grid;gap:12px}
-  .opMenuBtn{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px;border:1px solid var(--line);border-radius:16px;background:#fff;cursor:pointer}
-  .opMenuBtn .k{font-weight:800}
-  .opMenuBtn .s{color:var(--muted);font-size:13px}
-  .opTopbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-  .opBack{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;cursor:pointer}
-  .opBack:active{transform:scale(.99)}
-  @media(max-width:820px){
-    .opTabsRow{display:none !important}
-    .opMenuBtn{min-height:62px}
-    .opMenuBtn .k{font-size:18px}
-  }
-
-
-  /* ===== Login Fullscreen Gate ===== */
-  #appShell{display:none}
-  #loginScreen{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;padding:18px;z-index:9999}
-  #loginCard{width:min(520px,100%);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow)}
-  #loginCard h2{margin:0 0 6px}
-  #loginCard .hint{margin:0 0 12px}
-  #userCorner{display:none;gap:10px;align-items:center}
-  @media(max-width:820px){
-    #loginCard{border-radius:22px}
-  }
-
-
-
-/* MOBILE BOOST */
-@media (max-width: 820px){
-  :root{ --pad: 14px; }
-  body{ font-size: 16px; }
-  .app{ padding: 10px; }
-  .card{ border-radius: 16px; }
-  .tabs{ position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.95); backdrop-filter: blur(8px); }
-  .tabbtn{ padding: 12px 12px; font-size: 15px; }
-  input, select, textarea{ font-size: 18px; height: 48px; }
-  textarea{ height: auto; }
-  .btn{ min-height: 48px; padding: 12px 14px; font-size: 16px; }
-  .row{ gap: 10px; }
-  .hint{ font-size: 13px; line-height: 1.3; }
-}
 </style>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 </head>
@@ -580,6 +415,11 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     return encodeKey(key);
   }
 
+  function extractProductBarcodes(p){
+    const raw = Array.isArray(p?.barcodes) ? p.barcodes : (p?.barcode ? [p.barcode] : []);
+    return Array.from(new Set(raw.map(x=>normalizeBarcode(x)).filter(Boolean)));
+  }
+
   function palletIdFromBarcode(palletBarcode){
     const b = normalizeBarcode(palletBarcode);
     return b ? encodeKey(b) : "nopallet";
@@ -699,10 +539,45 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     await setDoc(doc(db, COL_POSITIONS, encodeKey(b)), { code: code.trim().toUpperCase(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
   }
 
+  function getProductBarcodes(p){
+    const arr = Array.isArray(p?.barcodes) ? p.barcodes : (p?.barcode ? [p.barcode] : []);
+    return arr.map(x=>normalizeBarcode(x)).filter(Boolean);
+  }
+
+  function mergeProductsForAdmin(rows){
+    const buckets = new Map();
+
+    rows.forEach(p=>{
+      const key = normalizeProductName(p?.name || p?.id || "");
+      if(!key) return;
+      if(!buckets.has(key)){
+        buckets.set(key, {
+          key,
+          id: productIdFromName(p?.name || "") || p.id,
+          name: String(p?.name || "").trim(),
+          nameKey: key,
+          sourceIds: [],
+          barcodes: new Set()
+        });
+      }
+      const t = buckets.get(key);
+      t.sourceIds.push(p.id);
+      if(productIdFromName(p?.name || "") === p.id) t.id = p.id;
+      if(!t.name && p?.name) t.name = String(p.name).trim();
+      getProductBarcodes(p).forEach(b=>t.barcodes.add(b));
+    });
+
+    return Array.from(buckets.values()).map(x=>({
+      ...x,
+      barcodes: Array.from(x.barcodes)
+    })).sort((a,b)=>(a.name||"").localeCompare(b.name||"", "pt", {sensitivity:"base"}));
+  }
+
   async function loadAdminLists(){
     const pSnap = await getDocs(collection(db, COL_PRODUCTS));
-    state.cache.products = pSnap.docs.map(d=>({id:d.id, ...d.data()}))
-      .sort((a,b)=>(a.name||"").localeCompare(b.name||"", "pt", {sensitivity:"base"}));
+    const rawProducts = pSnap.docs.map(d=>({id:d.id, ...d.data()}));
+    state.cache.productsRaw = rawProducts;
+    state.cache.products = mergeProductsForAdmin(rawProducts);
     const sSnap = await getDocs(collection(db, COL_POSITIONS));
     state.cache.positions = sSnap.docs.map(d=>({id:d.id, ...d.data()}))
       .sort((a,b)=>(a.code||"").localeCompare(b.code||"", "pt", {sensitivity:"base"}));
@@ -1124,7 +999,7 @@ const u = auth.currentUser;
               <button class="btn ghost" id="sReload">Refresh</button>
             </div>
           </div>
-          <div id="sMsg"></div>
+          <div id="locMsg"></div>
           <div class="divider"></div>
           <div class="row"><div class="field"><label>Search</label><input id="sSearch" placeholder="posição ou barcode" /></div></div>
           <div style="overflow:auto;max-height:420px;margin-top:10px">
@@ -1153,7 +1028,7 @@ const u = auth.currentUser;
             </div>
           </div>
 
-          <div id="sMsg" style="margin-top:8px"></div>
+          <div id="statusMsg" style="margin-top:8px"></div>
         </div>
 
         <div class="card" style="margin-top:12px">
@@ -1225,7 +1100,7 @@ const u = auth.currentUser;
       $("oList").value = lines.join("\n");
       $("oAdd").value = "";
     };
-    $("oReloadBtn").onclick = ()=>{ _originsCache=null; refreshOriginsUI();
+    $("oReloadBtn").onclick = ()=>{ _originsCache=null; refreshOriginsUI(); };
 
     // Statuses (Admin) handlers
     const sList = $("sList");
@@ -1233,15 +1108,15 @@ const u = auth.currentUser;
     const sAddBtn = $("sAddBtn");
     const sReloadBtn = $("sReloadBtn");
     const sSaveBtn = $("sSaveBtn");
-    const sMsg = $("sMsg");
+    const statusMsg = $("statusMsg");
 
     async function refreshStatusesUI(){
       try{
         const statuses = await ensureStatusesLoaded();
         if(sList) sList.value = statuses.join("\n");
-        if(sMsg) sMsg.innerHTML = msgBox("Loaded.", "ok");
+        if(statusMsg) statusMsg.innerHTML = msgBox("Loaded.", "ok");
       }catch(err){
-        if(sMsg) sMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
+        if(statusMsg) statusMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
       }
     }
 
@@ -1260,14 +1135,13 @@ const u = auth.currentUser;
       try{
         const lines = String(sList ? sList.value : "").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
         await saveStatuses(lines);
-        if(sMsg) sMsg.innerHTML = msgBox("Saved.", "ok");
+        if(statusMsg) statusMsg.innerHTML = msgBox("Saved.", "ok");
       }catch(err){
-        if(sMsg) sMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
+        if(statusMsg) statusMsg.innerHTML = msgBox("Error: "+esc(err.message||err), "err");
       }
     });
 
     if(sList) refreshStatusesUI();
- };
     $("oSaveBtn").onclick = async ()=>{
       try{
         const lines = String($("oList").value||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
@@ -1350,19 +1224,19 @@ $("pSearch").oninput = renderProductsTable;
           batch.set(doc(db, COL_POSITIONS, encodeKey(item.barcode)), {code:item.code, barcode:item.barcode, updatedAt:serverTimestamp()}, {merge:true});
         });
         await batch.commit();
-        $("sMsg").innerHTML = msgBox(`✅ Importadas/atualizadas <b>${imported.length}</b> posições.`, "ok");
+        $("locMsg").innerHTML = msgBox(`✅ Importadas/atualizadas <b>${imported.length}</b> posições.`, "ok");
         await loadAdminLists(); renderPositionsTable();
-      }catch(err){ $("sMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+      }catch(err){ $("locMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
       finally{ e.target.value=""; }
     };
 
     $("sSave").onclick = async ()=>{
       try{
         await upsertPosition({code:$("sCode").value, barcode:$("sBarcode").value});
-        $("sMsg").innerHTML = msgBox("✅ Guardado.", "ok");
+        $("locMsg").innerHTML = msgBox("✅ Guardado.", "ok");
         $("sCode").value=""; $("sBarcode").value="";
         await loadAdminLists(); renderPositionsTable();
-      }catch(err){ $("sMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+      }catch(err){ $("locMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
     };
     $("sReload").onclick = async ()=>{ await loadAdminLists(); renderPositionsTable(); };
     $("sSearch").oninput = renderPositionsTable;
@@ -1373,39 +1247,42 @@ $("pSearch").oninput = renderProductsTable;
       const term = ($("pSearch").value||"").toLowerCase().trim();
       const list = state.cache.products.filter(p=>{
         const n = (p.name||"").toLowerCase();
-        const bars = Array.isArray(p.barcodes) ? p.barcodes : (p.barcode ? [p.barcode] : []);
+        const bars = getProductBarcodes(p);
         const btxt = bars.map(x=>String(x||"").toLowerCase()).join(" ");
         return !term || n.includes(term) || btxt.includes(term);
       });
 
       $("pTable").innerHTML = list.map(p=>{
-        const bars = Array.isArray(p.barcodes) ? p.barcodes : (p.barcode ? [p.barcode] : []);
+        const bars = getProductBarcodes(p);
         const bShow = bars.join(", ");
+        const dupHint = (p.sourceIds && p.sourceIds.length>1)
+          ? `<div class="hint" style="margin-top:4px">${p.sourceIds.length} registos antigos agrupados neste produto.</div>`
+          : "";
         return `
         <tr>
-          <td><input value="${esc(p.name||"")}" data-id="${esc(p.id)}" class="pEditName" /></td>
+          <td>
+            <input value="${esc(p.name||"")}" data-id="${esc(p.id)}" class="pEditName" />
+            ${dupHint}
+          </td>
           <td><input value="${esc(bShow)}" data-id="${esc(p.id)}" class="pEditBarcode" placeholder="Adicionar barcode e guardar" /></td>
           <td class="right" style="white-space:nowrap">
-            <button class="btn ghost pDel" data-id="${esc(p.id)}">Apagar</button>
+            <button class="btn ghost pDel" data-id="${esc(p.id)}" data-dup="${(p.sourceIds||[]).length}">Apagar</button>
           </td>
         </tr>`;
       }).join("");
 
-      // editar nome (produto canónico)
       document.querySelectorAll(".pEditName").forEach(inp=>{
         inp.onchange = async ()=>{
           try{
             const id = inp.dataset.id;
             const nm = String(inp.value||"").trim();
             if(!nm) return;
-            // manter id; apenas atualizar nome
             await setDoc(doc(db, COL_PRODUCTS, id), { name:nm, nameKey: normalizeProductName(nm), updatedAt: serverTimestamp() }, {merge:true});
             await loadAdminLists(); renderProductsTable();
           }catch(err){ $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
         };
       });
 
-      // adicionar barcode (escreve no mapping e adiciona ao array barcodes)
       document.querySelectorAll(".pEditBarcode").forEach(inp=>{
         inp.onchange = async ()=>{
           try{
@@ -1413,9 +1290,10 @@ $("pSearch").oninput = renderProductsTable;
             const raw = String(inp.value||"");
             const parts = raw.split(",").map(x=>normalizeBarcode(x)).filter(Boolean);
             if(parts.length===0) return;
-            const b = parts[parts.length-1]; // último barcode introduzido
+            const b = parts[parts.length-1];
+            const prod = state.cache.products.find(p=>p.id===id);
             await setDoc(doc(db, COL_PRODUCTS, id), { barcodes: arrayUnion(b), updatedAt: serverTimestamp() }, {merge:true});
-            await setDoc(doc(db, COL_PRODUCT_BARCODES, encodeKey(b)), { barcode:b, productId:id, name: state.cache.products.find(p=>p.id===id)?.name || "", updatedAt: serverTimestamp() }, {merge:true});
+            await setDoc(doc(db, COL_PRODUCT_BARCODES, encodeKey(b)), { barcode:b, productId:id, name: prod?.name || "", updatedAt: serverTimestamp() }, {merge:true});
             await loadAdminLists(); renderProductsTable();
           }catch(err){ $("pMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
         };
@@ -1426,6 +1304,11 @@ $("pSearch").oninput = renderProductsTable;
           ev.preventDefault(); ev.stopPropagation();
           try{
             const id = btn.dataset.id;
+            const dup = Number(btn.dataset.dup||0);
+            if(dup>1){
+              $("pMsg").innerHTML = msgBox("Este produto tem registos antigos agrupados. Não apague daqui para não perder dados.", "warn");
+              return;
+            }
             if(!confirm("Apagar produto?")) return;
             await deleteDoc(doc(db, COL_PRODUCTS, id));
             await loadAdminLists(); renderProductsTable();
@@ -1464,7 +1347,7 @@ $("pSearch").oninput = renderProductsTable;
               if(!confirm("Apagar posição?")) return;
               await deleteDoc(doc(db, COL_POSITIONS, id));
               await loadAdminLists(); renderPositionsTable();
-              $("sMsg").innerHTML = msgBox("✅ Apagado.", "ok");
+              $("locMsg").innerHTML = msgBox("✅ Apagado.", "ok");
             }else{
               const code = $("sTable").querySelector(`input[data-id="${id}"][data-k="code"]`).value.trim();
               const barcode = normalizeBarcode($("sTable").querySelector(`input[data-id="${id}"][data-k="barcode"]`).value);
@@ -1473,9 +1356,9 @@ $("pSearch").oninput = renderProductsTable;
               await setDoc(doc(db, COL_POSITIONS, newId), {code, barcode, updatedAt:serverTimestamp()}, {merge:true});
               if(newId !== id) await deleteDoc(doc(db, COL_POSITIONS, id));
               await loadAdminLists(); renderPositionsTable();
-              $("sMsg").innerHTML = msgBox("✅ Guardado.", "ok");
+              $("locMsg").innerHTML = msgBox("✅ Guardado.", "ok");
             }
-          }catch(err){ $("sMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+          }catch(err){ $("locMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
         };
       });
     }
@@ -3012,7 +2895,7 @@ function getProductBarcodes(p){
         <div class="row" style="margin-top:10px;align-items:flex-end">
           <div class="field" style="flex:1;min-width:200px">
             <label>Search</label>
-            <input id="stQ" placeholder="nome ou barcode..." />
+            <input id="stQ" placeholder="nome/SKU do produto..." />
           </div>
           <button class="btn ghost" id="stReload">Refresh</button>
           <button class="btn ok" id="stExport">Export ;</button>
@@ -3053,7 +2936,7 @@ function getProductBarcodes(p){
     }
     function draw(){
       const q = (stQ.value||"").toLowerCase().trim();
-      const rows = q ? all.filter(r => (r.name||"").toLowerCase().includes(q) || (r.barcode||"").toLowerCase().includes(q)) : all;
+      const rows = q ? all.filter(r => (r.name||"").toLowerCase().includes(q)) : all;
       stBody.innerHTML = rows.map(r=>`
         <tr>
           <td>${esc(r.name)}</td>
@@ -3081,50 +2964,50 @@ function getProductBarcodes(p){
   function setupLookupProduto(){
     const inp = $("cpProd"), go = $("cpGo"), clear = $("cpClear");
     const msg = $("cpMsg"), info = $("cpProdInfo"), results = $("cpResults");
-    let chosen = null; // {name, barcodes[]}
+    let chosen = null;
 
     const reset=()=>{ chosen=null; inp.value=""; info.textContent=""; msg.innerHTML=""; results.innerHTML=""; inp.focus(); };
 
-    // Carrega todos os produtos e agrupa por nome, juntando vários barcodes ao mesmo produto
     async function getProductsGrouped(){
       const snap = await getDocs(collection(db, COL_PRODUCTS));
-      const map = new Map(); // nameLower -> {name, barcodes:[], anyDoc:{}}
+      const map = new Map();
       snap.forEach(d=>{
-        const p = d.data()||{};
+        const p = d.data() || {};
         const name = String(p.name||"").trim();
         if(!name) return;
-        const key = name.toLowerCase();
-        const ent = map.get(key) || { name, barcodes:[], any:p };
-        ent.barcodes.push(d.id);
-        // mantém campos úteis do "any" se existirem
-        ent.any = ent.any || p;
+
+        const key = normalizeProductName(name);
+        const canonicalId = productIdFromName(name) || d.id;
+        const ent = map.get(key) || { id: canonicalId, name, productIds:new Set(), barcodes:new Set() };
+
+        ent.id = canonicalId;
+        ent.name = ent.name || name;
+        ent.productIds.add(canonicalId);
+        ent.productIds.add(d.id);
+        extractProductBarcodes(p).forEach(b=>ent.barcodes.add(b));
         map.set(key, ent);
       });
-      return Array.from(map.values()).sort((a,b)=>a.name.localeCompare(b.name,"pt",{sensitivity:"base"}));
+
+      return Array.from(map.values())
+        .map(p=>({
+          id: p.id,
+          name: p.name,
+          productIds: Array.from(p.productIds).filter(Boolean),
+          barcodes: Array.from(p.barcodes).sort((a,b)=>String(a).localeCompare(String(b), "pt", {sensitivity:"base"}))
+        }))
+        .sort((a,b)=>a.name.localeCompare(b.name, "pt", {sensitivity:"base"}));
     }
 
     async function pickByText(txt){
-      const q = String(txt||"").trim().toLowerCase();
+      const q = normalizeProductName(txt);
       if(!q) return null;
 
       const list = await getProductsGrouped();
-      // prioridade: match exato pelo nome
-      let hits = list.filter(p=>p.name.toLowerCase()===q);
-      // senão: contém
-      if(hits.length===0) hits = list.filter(p=>p.name.toLowerCase().includes(q));
-      if(hits.length===0){
-        // fallback: se o user colar um barcode, tentar encontrar por barcode (id do doc)
-        const snap = await getDoc(doc(db, COL_PRODUCTS, encodeKey(normalizeBarcode(q))));
-        if(snap.exists()){
-          const p = snap.data()||{};
-          const name = String(p.name||"").trim();
-          if(name) return { name, barcodes:[snap.id], any:p };
-        }
-        return null;
-      }
+      let hits = list.filter(p=>normalizeProductName(p.name)===q);
+      if(hits.length===0) hits = list.filter(p=>normalizeProductName(p.name).includes(q));
+      if(hits.length===0) return null;
       if(hits.length===1) return hits[0];
 
-      // demasiados resultados → mostrar lista para escolher
       results.innerHTML = `
         <div class="hint">Foram encontrados <b>${hits.length}</b> produtos. Refina a pesquisa ou escolhe um:</div>
         <div style="overflow:auto;margin-top:8px">
@@ -3155,17 +3038,24 @@ function getProductBarcodes(p){
       return "__PICKING__";
     }
 
-    async function queryStockForBarcodes(barcodes){
+    async function queryStockForProductIds(productIds){
+      const ids = Array.from(new Set((productIds||[]).filter(Boolean)));
+      if(ids.length===0) return [];
+
       const chunks = [];
-      const maxIn = 30; // limite do Firestore para "in"
-      for(let i=0;i<barcodes.length;i+=maxIn){
-        chunks.push(barcodes.slice(i,i+maxIn));
-      }
+      const maxIn = 30;
+      for(let i=0;i<ids.length;i+=maxIn) chunks.push(ids.slice(i,i+maxIn));
+
       const all = [];
+      const seen = new Set();
       for(const ch of chunks){
         const qy = query(collection(db, COL_STOCK), where("productId","in", ch));
         const snap = await getDocs(qy);
-        snap.forEach(d=>all.push(d.data()));
+        snap.forEach(d=>{
+          if(seen.has(d.id)) return;
+          seen.add(d.id);
+          all.push(d.data());
+        });
       }
       return all;
     }
@@ -3175,30 +3065,64 @@ function getProductBarcodes(p){
         msg.innerHTML=""; results.innerHTML="";
         const sel = preset || await pickByText(inp.value);
         if(sel==="__PICKING__") return;
-        if(!sel) throw new Error("Produto não encontrado (por nome/SKU).");
+        if(!sel) throw new Error("Produto não encontrado (procura por nome/SKU).");
         chosen = sel;
         info.textContent = "✅ " + (chosen.name||"");
 
-        const rowsAll = await queryStockForBarcodes(chosen.barcodes||[]);
-        const rows = rowsAll.filter(x=>(Number(x.qtyUnits||0)>0 || Number(x.qtyPallets||0)>0));
+        const rowsAll = await queryStockForProductIds(chosen.productIds || [chosen.id]);
+        const grouped = new Map();
+
+        for(const x of rowsAll){
+          const qtyUnits = Number(x.qtyUnits||0);
+          const qtyPallets = Number(x.qtyPallets||0);
+          if(!(qtyUnits>0 || qtyPallets>0)) continue;
+
+          const slotType = String(x.slotType||"PICKING").toUpperCase();
+          const palletBarcode = normalizeBarcode(x.palletBarcode||"");
+          const status = String(x.status||"");
+          const key = [x.positionId||"", palletBarcode, slotType, status].join("||");
+
+          if(!grouped.has(key)){
+            grouped.set(key, {
+              positionId: x.positionId || "",
+              palletBarcode,
+              slotType,
+              status,
+              qtyUnits: 0,
+              qtyPallets: 0
+            });
+          }
+          const g = grouped.get(key);
+          g.qtyUnits += qtyUnits;
+          g.qtyPallets += qtyPallets;
+        }
+
+        const rows = Array.from(grouped.values());
         if(rows.length===0){ results.innerHTML = msgBox("Sem stock em posições.", "warn"); return; }
 
-        // carregar códigos das posições
-        const posSnaps = await Promise.all(rows.map(r=>getDoc(doc(db, COL_POSITIONS, r.positionId))));
-        const view = rows.map((r,i)=>{
-          const ps = posSnaps[i];
-          const posCode = ps.exists() ? (ps.data().code || r.positionId) : r.positionId;
-          return {
-            posCode,
-            palletBarcode: r.palletBarcode || "",
-            slotType: r.slotType || "PICKING",
-            qtyUnits: Number(r.qtyUnits||0),
-            qtyPallets: Number(r.qtyPallets||0),
-            status: r.status || ""
-          };
-        }).sort((a,b)=>(a.posCode||"").localeCompare(b.posCode||"", "pt", {sensitivity:"base"}));
+        const posIds = Array.from(new Set(rows.map(r=>r.positionId).filter(Boolean)));
+        const posDocs = await Promise.all(posIds.map(id=>getDoc(doc(db, COL_POSITIONS, id))));
+        const posMap = new Map();
+        posIds.forEach((id, i)=>{
+          const ps = posDocs[i];
+          posMap.set(id, ps.exists() ? (ps.data().code || id) : id);
+        });
+
+        const view = rows.map(r=>({
+          posCode: posMap.get(r.positionId) || r.positionId,
+          palletBarcode: r.palletBarcode || "",
+          slotType: r.slotType || "PICKING",
+          qtyUnits: Number(r.qtyUnits||0),
+          qtyPallets: Number(r.qtyPallets||0),
+          status: r.status || ""
+        })).sort((a,b)=>{
+          const posCmp = (a.posCode||"").localeCompare(b.posCode||"", "pt", {sensitivity:"base"});
+          if(posCmp!==0) return posCmp;
+          return (a.palletBarcode||"").localeCompare(b.palletBarcode||"", "pt", {sensitivity:"base"});
+        });
 
         results.innerHTML = `
+          <div class="hint" style="margin-bottom:8px">Resultado agrupado por <b>produto</b> (mesmo produto com vários barcodes aparece junto).</div>
           <div style="overflow:auto">
             <table>
               <thead><tr><th>Location</th><th>Pallet</th><th>Status</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
@@ -3232,6 +3156,26 @@ function getProductBarcodes(p){
 
     const reset=()=>{ pos=null; inp.value=""; info.textContent=""; msg.innerHTML=""; results.innerHTML=""; inp.focus(); };
 
+    async function resolveProductName(productId, prodMap, legacyCache){
+      if(!productId) return "";
+      const direct = prodMap.get(productId);
+      if(direct && direct.name) return String(direct.name||"").trim();
+      if(legacyCache.has(productId)) return legacyCache.get(productId);
+
+      let name = String(productId||"").trim();
+      try{
+        const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, productId));
+        if(mapSnap.exists()){
+          const canonicalPid = mapSnap.data().productId;
+          const canonical = prodMap.get(canonicalPid);
+          if(canonical && canonical.name) name = String(canonical.name||"").trim() || name;
+        }
+      }catch(_e){}
+
+      legacyCache.set(productId, name);
+      return name;
+    }
+
     async function run(){
       try{
         msg.innerHTML=""; results.innerHTML="";
@@ -3244,23 +3188,42 @@ function getProductBarcodes(p){
         if(snap.empty){ results.innerHTML = msgBox("Sem stock nesta posição.", "warn"); return; }
 
         const rows = snap.docs.map(d=>d.data()).filter(x=>(Number(x.qtyUnits||0)>0 || Number(x.qtyPallets||0)>0));
+        if(rows.length===0){ results.innerHTML = msgBox("Sem stock nesta posição.", "warn"); return; }
 
-        // carregar nomes dos produtos
-        const prodSnaps = await Promise.all(rows.map(r=>getDoc(doc(db, COL_PRODUCTS, r.productId))));
-        const view = rows.map((r,i)=>{
-          const ps = prodSnaps[i];
-          const prodName = ps.exists() ? (ps.data().name || r.productId) : r.productId;
-          return {
-            prodName,
-            palletBarcode: r.palletBarcode || "",
-            slotType: r.slotType || "PICKING",
-            qtyUnits: Number(r.qtyUnits||0),
-            qtyPallets: Number(r.qtyPallets||0),
-            status: r.status || ""
-          };
-        }).sort((a,b)=>(a.prodName||"").localeCompare(b.prodName||"", "pt", {sensitivity:"base"}));
+        const prodMap = await getProductsMapCached();
+        const legacyCache = new Map();
+        const grouped = new Map();
+
+        for(const r of rows){
+          const prodName = await resolveProductName(r.productId, prodMap, legacyCache);
+          const slotType = String(r.slotType||"PICKING").toUpperCase();
+          const palletBarcode = normalizeBarcode(r.palletBarcode||"");
+          const status = String(r.status||"");
+          const key = [normalizeProductName(prodName), palletBarcode, slotType, status].join("||");
+
+          if(!grouped.has(key)){
+            grouped.set(key, {
+              prodName,
+              palletBarcode,
+              slotType,
+              status,
+              qtyUnits: 0,
+              qtyPallets: 0
+            });
+          }
+          const g = grouped.get(key);
+          g.qtyUnits += Number(r.qtyUnits||0);
+          g.qtyPallets += Number(r.qtyPallets||0);
+        }
+
+        const view = Array.from(grouped.values()).sort((a,b)=>{
+          const prodCmp = (a.prodName||"").localeCompare(b.prodName||"", "pt", {sensitivity:"base"});
+          if(prodCmp!==0) return prodCmp;
+          return (a.palletBarcode||"").localeCompare(b.palletBarcode||"", "pt", {sensitivity:"base"});
+        });
 
         results.innerHTML = `
+          <div class="hint" style="margin-bottom:8px">Resultado agrupado por <b>produto</b> nesta location.</div>
           <div style="overflow:auto">
             <table>
               <thead><tr><th>Produto</th><th>Pallet</th><th>Status</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
