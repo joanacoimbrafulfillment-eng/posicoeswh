@@ -9,6 +9,7 @@
     --surface:#ffffff;
     --surface2:#fbfbfe;
     --stroke:rgba(20,24,33,.12);
+    --line:rgba(20,24,33,.12);
     --text:#101624;
     --muted:#5b677a;
     --accent:#1f8a70;   /* verde/teal */
@@ -16,6 +17,7 @@
     --danger:#d64545;
     --warn:#b88300;
     --radius:16px;
+    --shadow:0 8px 28px rgba(16,22,36,.06);
   }
   *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
   body{margin:0;background:linear-gradient(180deg,var(--bg),#ffffff);color:var(--text)}
@@ -370,8 +372,8 @@ const state = { tab: "operacao", op:"menu", user: null, cache: { products: [], p
   function isAdminUser(u){ return /@admin\.com$/.test(emailOfUser(u)); }
   function isWhUser(u){ return /@wh\.com$/.test(emailOfUser(u)); }
   function isAllowedUser(u){ return /^(joana\.coimbra\.fulfillment@gmail\.com)$/i.test(emailOfUser(u)); }
-  function canOperate(u){ return !!u && (isAdminUser(auth.currentUser) || isWhUser(u) || isAllowedUser(u)); }
-  function canAdmin(u){ return !!u && isAdminUser(auth.currentUser); }
+  function canOperate(u){ return !!u && (isAdminUser(u) || isWhUser(u) || isAllowedUser(u)); }
+  function canAdmin(u){ return !!u && isAdminUser(u); }
 
   
   function displayUser(m){
@@ -662,8 +664,6 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         userId: user.uid,
         userEmail: (user.email||""),
         userLabel: ((user.email||"").split("@")[0]||""),
-        userEmail: (user.email||""),
-        userLabel: ((user.email||"").split("@")[0]||""),
         positionId,
         productId,
         palletBarcode: pbc || "",
@@ -679,6 +679,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         origin: ((dU>=0 || dP>=0) && (org==="NEW"||org==="RETURNS")) ? org : "",
       });
     });
+    invalidateDerivedCaches();
   }
 
   async function ensurePickingPallet(positionId, productId, palletBarcode){
@@ -693,6 +694,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       qtyUnits: 1,
       updatedAt: serverTimestamp()
     }, { merge:true });
+    invalidateDerivedCaches();
   }
 
   async function transferReplenish(fromPositionId, toPositionId, productId, srcPallet, dstPallet, qtyUnits, qtyPallets){
@@ -774,6 +776,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         pickingIgnoredUnits: true,
       });
     });
+    invalidateDerivedCaches();
   }
 
 
@@ -835,8 +838,6 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         userId: user.uid,
         userEmail: (user.email||""),
         userLabel: ((user.email||"").split("@")[0]||""),
-        userEmail: (user.email||""),
-        userLabel: ((user.email||"").split("@")[0]||""),
         fromPositionId,
         toPositionId,
         productId,
@@ -846,6 +847,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
         status: statusToSet
       });
     });
+    invalidateDerivedCaches();
   }
 
   async function moveAllFromPosition(fromPositionId, toPositionId){
@@ -894,6 +896,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     batch.set(mvRef, { type:"MUDAR_TUDO", ts:serverTimestamp(), userId:user.uid, userEmail:(user.email||""), fromPositionId, toPositionId });
 
     await batch.commit();
+    invalidateDerivedCaches();
   }
 
   // ===== UI base =====
@@ -1921,7 +1924,7 @@ aOk.onclick = async ()=>{
     async function populateStatuses(){
       const statuses = await ensureStatusesLoaded();
       if(aStatus){
-        aStatus.innerHTML = statuses.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+        aStatus.innerHTML = statusOptions(statuses, true);
       }
     }
 
@@ -2427,7 +2430,7 @@ function setupRemove(){
   async function listStockByPallet(palletBarcode){
     const pbc = normalizeBarcode(palletBarcode);
     if(!pbc) return [];
-    const qy = query(collection(db, COL_STOCK), where("palletBarcode","==",pbc), limit(200));
+    const qy = query(collection(db, COL_STOCK), where("palletBarcode","==",pbc));
     const snap = await getDocs(qy);
     const rows = [];
     snap.forEach(d=> rows.push({ id:d.id, ...d.data() }));
@@ -2459,8 +2462,6 @@ function setupRemove(){
         userId: user.uid,
         userEmail: (user.email||""),
         userLabel: ((user.email||"").split("@")[0]||""),
-        userEmail: (user.email||""),
-        userLabel: ((user.email||"").split("@")[0]||""),
         positionId: r.positionId || "",
         productId: r.productId || "",
         palletBarcode: pbc,
@@ -2478,6 +2479,7 @@ function setupRemove(){
       }
     }
     if(ops>0) await batch.commit();
+    invalidateDerivedCaches();
     return rows.length;
   }
 
@@ -2765,8 +2767,46 @@ mMove.onclick = async ()=>{
   // Cache do snapshot de stock para evitar leituras repetidas (ex.: totais gerais)
   let __stockSnapPromise = null;
 
+  function invalidateDerivedCaches(){
+    __stockSnapPromise = null;
+  }
+
+  async function resolveCanonicalProductsForIds(rawProdIds){
+    const ids = Array.from(new Set((rawProdIds||[]).filter(Boolean)));
+    const prodMap = await getProductsMapCached();
+    const out = new Map();
+
+    await Promise.all(ids.map(async (rawId)=>{
+      let pr = prodMap.get(rawId);
+      if(!pr){
+        try{
+          const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, rawId));
+          if(mapSnap.exists()){
+            const canonicalPid = mapSnap.data().productId;
+            pr = prodMap.get(canonicalPid);
+          }
+        }catch(_e){}
+      }
+
+      const name = String(pr?.name || rawId || "").trim() || rawId;
+      const canonicalId = productIdFromName(name) || rawId;
+      const barcodes = Array.isArray(pr?.barcodes)
+        ? pr.barcodes.map(b=>normalizeBarcode(b)).filter(Boolean)
+        : (pr?.barcode ? [normalizeBarcode(pr.barcode)].filter(Boolean) : []);
+
+      out.set(rawId, {
+        rawId,
+        canonicalId,
+        name,
+        barcodes
+      });
+    }));
+
+    return out;
+  }
+
   async function computeStockTotalsByProduct(){
-      const snap = await getDocs(query(collection(db, COL_STOCK), limit(2000)));
+      const snap = await getDocs(collection(db, COL_STOCK));
       // reutilizar este snapshot para totais gerais (evita uma 2ª leitura)
       __stockSnapPromise = Promise.resolve(snap);
 
@@ -3343,21 +3383,23 @@ async function exportStockCSV(){
     const prodIds = [...new Set(rows.map(r=>r.productId).filter(Boolean))];
 
     const posSnaps = await Promise.all(posIds.map(id=>getDoc(doc(db, COL_POSITIONS, id))));
-    const prodSnaps = await Promise.all(prodIds.map(id=>getDoc(doc(db, COL_PRODUCTS, id))));
-
     const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? (posSnaps[i].data().code || id) : id]));
-    const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? (prodSnaps[i].data().name || id) : id]));
+    const prodInfoMap = await resolveCanonicalProductsForIds(prodIds);
 
-    const header = ["posicao","produto","palletBarcode","tipo","status","origem","qtyUnits","qtyPallets","updatedAt"].join(";");
+    const header = ["posicao","produto","barcode","palletBarcode","tipo","status","origem","qtyUnits","qtyPallets","updatedAt"].join(";");
     const lines = rows.map(r=>{
       const code = posMap.get(r.positionId) || r.positionId || "";
-      const name = prodMap.get(r.productId) || r.productId || "";
-      const upd = r.updatedAt.toDate ? r.updatedAt.toDate().toISOString() : "";
+      const info = prodInfoMap.get(r.productId) || { name:(r.productId || ""), barcodes:[] };
+      const name = info.name || r.productId || "";
+      const barcode = (info.barcodes||[]).map(b=>sanitizeBarcodeExport(b||"")).join(", ");
+      const upd = r.updatedAt && r.updatedAt.toDate ? r.updatedAt.toDate().toISOString() : "";
       return [
         csvEscape(code),
         csvEscape(name),
+        csvEscape(barcode),
         csvEscape(r.palletBarcode || ""),
         csvEscape(r.slotType || ""),
+        csvEscape(r.status || ""),
         csvEscape(r.origin || ""),
         csvEscape(Number(r.qtyUnits||0)),
         csvEscape(Number(r.qtyPallets||0)),
@@ -3401,37 +3443,20 @@ async function exportStockCSV(){
   }
 
   async function computeTotalsByProduct(){
-    const prodSnap = await getDocs(collection(db, COL_PRODUCTS));
-    const products = prodSnap.docs.map(d=>({id:d.id, ...d.data()}));
-    const prodMap = new Map(products.map(p=>[p.id, p]));
-
-    const stockSnap = await getDocs(collection(db, COL_STOCK));
-    const stock = stockSnap.docs.map(d=>d.data());
-
-    const agg = new Map();
-    for(const s of stock){
-      const pid = s.productId;
-      if(!pid) continue;
-      const u = Number(s.qtyUnits||0);
-      const p = Number(s.qtyPallets||0);
-      if(!agg.has(pid)) agg.set(pid, {u:0,p:0});
-      const a = agg.get(pid);
-      a.u += u; a.p += p;
-    }
-
-    const rows = [];
-    for(const [pid, a] of agg.entries()){
-      const pr = prodMap.get(pid) || {name:pid, barcode:""};
-      rows.push({ productId:pid, name:pr.name||pid, barcode:pr.barcode||"", qtyUnits:a.u, qtyPallets:a.p });
-    }
-    rows.sort((x,y)=>(x.name||"").localeCompare(y.name||"", "pt", {sensitivity:"base"}));
-    return rows;
+    const rows = await computeStockTotalsByProduct();
+    return rows.map(r=>({
+      productId: r.productId,
+      name: r.name || r.productId || "",
+      barcode: r.barcode || "",
+      qtyUnits: Number(r.UND_COMPLETA||0) + Number(r.UND_PICKING||0),
+      qtyPallets: Number(r.PAL_COMPLETA||0) + Number(r.PAL_PICKING||0)
+    }));
   }
 
   async function computeGlobalTotals(){
     // Usa cache do snapshot de stock quando disponível; caso contrário carrega 1x e reutiliza.
     if(!__stockSnapPromise){
-      __stockSnapPromise = getDocs(query(collection(db, COL_STOCK), limit(2000)));
+      __stockSnapPromise = getDocs(collection(db, COL_STOCK));
     }
     const stockSnap = await __stockSnapPromise;
 
@@ -3456,7 +3481,7 @@ async function exportStockCSV(){
       csvEscape(Number(r.qtyUnits||0)),
       csvEscape(Number(r.qtyPallets||0))
     ].join(";"));
-    downloadTextFile(`totais_produto_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\\n"));
+    downloadTextFile(`totais_produto_${new Date().toISOString().slice(0,10)}.csv`, [header, ...lines].join("\n"));
   }
 
 
