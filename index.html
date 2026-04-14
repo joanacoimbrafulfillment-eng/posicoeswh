@@ -428,79 +428,227 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
   }
   function stockKey(positionId, productId, palletId){ return `${positionId}__${productId}__${palletId}`; }
 
+
+  // ---- caches locais para reduzir leituras repetidas ----
+  let __productByBarcodePromiseCache = new Map();
+  let __productGroupsPromise = null;
+  let __positionInputPromiseCache = new Map();
+  let __positionByIdCache = new Map();
+  let __palletResolutionPromiseCache = new Map();
+  const PALLET_RESOLUTION_TTL_MS = 15000;
+
+  function invalidateCatalogCaches(opts){
+    const clearProducts = !opts || !!opts.products;
+    const clearPositions = !opts || !!opts.positions;
+    if(clearProducts){
+      __productsMapPromise = null;
+      __productGroupsPromise = null;
+      __productByBarcodePromiseCache.clear();
+    }
+    if(clearPositions){
+      __positionInputPromiseCache.clear();
+      __positionByIdCache.clear();
+    }
+  }
+
+  function cachePositionRecord(pos){
+    if(!pos || !pos.id) return pos;
+    __positionByIdCache.set(pos.id, pos);
+    const barcode = normalizeBarcode(pos.barcode || "");
+    if(barcode) __positionInputPromiseCache.set("b:" + barcode, Promise.resolve(pos));
+    const code = String(pos.code || "").trim();
+    if(code){
+      __positionInputPromiseCache.set("c:" + code, Promise.resolve(pos));
+      __positionInputPromiseCache.set("c:" + code.toUpperCase(), Promise.resolve(pos));
+    }
+    return pos;
+  }
+
+  function cachePositionMiss(raw){
+    const key = String(raw||"").trim();
+    if(!key) return null;
+    const miss = Promise.resolve(null);
+    __positionInputPromiseCache.set("b:" + normalizeBarcode(key), miss);
+    __positionInputPromiseCache.set("c:" + key, miss);
+    __positionInputPromiseCache.set("c:" + key.toUpperCase(), miss);
+    return miss;
+  }
+
+  function getCachedPositionLookup(raw){
+    const key = String(raw||"").trim();
+    if(!key) return null;
+    return __positionInputPromiseCache.get("b:" + normalizeBarcode(key))
+      || __positionInputPromiseCache.get("c:" + key)
+      || __positionInputPromiseCache.get("c:" + key.toUpperCase())
+      || null;
+  }
+
+  function cacheProductGroupsFromRows(rows){
+    const map = new Map();
+    (rows||[]).forEach(p=>{
+      const name = String(p?.name||"").trim();
+      if(!name) return;
+      const key = normalizeProductName(name);
+      const canonicalId = productIdFromName(name) || p.id;
+      const ent = map.get(key) || { id: canonicalId, name, productIds:new Set(), barcodes:new Set() };
+      ent.id = canonicalId;
+      ent.name = ent.name || name;
+      ent.productIds.add(canonicalId);
+      ent.productIds.add(p.id);
+      extractProductBarcodes(p).forEach(b=>ent.barcodes.add(b));
+      map.set(key, ent);
+    });
+    const grouped = Array.from(map.values())
+      .map(p=>({
+        id: p.id,
+        name: p.name,
+        productIds: Array.from(p.productIds).filter(Boolean),
+        barcodes: Array.from(p.barcodes).sort((a,b)=>String(a).localeCompare(String(b), "pt", {sensitivity:"base"}))
+      }))
+      .sort((a,b)=>a.name.localeCompare(b.name, "pt", {sensitivity:"base"}));
+    __productGroupsPromise = Promise.resolve(grouped);
+    return grouped;
+  }
+
   async function getProductByBarcode(barcode){
     const b = normalizeBarcode(barcode);
     if(!b) return null;
-    const bKey = encodeKey(b);
+    if(__productByBarcodePromiseCache.has(b)) return __productByBarcodePromiseCache.get(b);
 
-    // 1) Novo: map barcode -> produto canónico
-    const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, bKey));
-    if(mapSnap.exists()){
-      const pid = mapSnap.data().productId;
-      const pSnap = await getDoc(doc(db, COL_PRODUCTS, pid));
-      return pSnap.exists() ? ({ id: pid, ...pSnap.data() }) : null;
-    }
+    const task = (async ()=>{
+      const bKey = encodeKey(b);
 
-    // 2) Legacy: products/{barcodeKey}
-    const legacySnap = await getDoc(doc(db, COL_PRODUCTS, bKey));
-    if(!legacySnap.exists()) return null;
+      // 1) Novo: map barcode -> produto canónico
+      const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, bKey));
+      if(mapSnap.exists()){
+        const pid = mapSnap.data().productId;
 
-    const legacy = ({ id: legacySnap.id, ...legacySnap.data() });
-    const name = legacy.name || "";
-    const pid = productIdFromName(name) || legacy.id;
+        if(Array.isArray(state.cache.productsRaw) && state.cache.productsRaw.length){
+          const found = state.cache.productsRaw.find(p=>p.id===pid);
+          if(found) return found;
+        }
+        if(__productsMapPromise){
+          try{
+            const prodMap = await __productsMapPromise;
+            if(prodMap.has(pid)) return prodMap.get(pid);
+          }catch(_e){}
+        }
 
-    // Migração "lazy": criar produto canónico + mapping (sem apagar legacy)
-    if(pid && pid !== legacy.id){
-      await setDoc(doc(db, COL_PRODUCTS, pid), {
-        name: String(name||"").trim(),
-        nameKey: normalizeProductName(name),
-        barcodes: arrayUnion(b),
-        updatedAt: serverTimestamp()
-      }, { merge:true });
+        const pSnap = await getDoc(doc(db, COL_PRODUCTS, pid));
+        return pSnap.exists() ? ({ id: pid, ...pSnap.data() }) : null;
+      }
 
-      await setDoc(doc(db, COL_PRODUCT_BARCODES, bKey), {
-        barcode: b,
-        productId: pid,
-        name: String(name||"").trim(),
-        updatedAt: serverTimestamp()
-      }, { merge:true });
+      // 2) Legacy: products/{barcodeKey}
+      const legacySnap = await getDoc(doc(db, COL_PRODUCTS, bKey));
+      if(!legacySnap.exists()) return null;
 
-      const pSnap = await getDoc(doc(db, COL_PRODUCTS, pid));
-      return pSnap.exists() ? ({ id: pid, ...pSnap.data() }) : legacy;
-    }
+      const legacy = ({ id: legacySnap.id, ...legacySnap.data() });
+      const name = legacy.name || "";
+      const pid = productIdFromName(name) || legacy.id;
 
-    return legacy;
+      // Migração "lazy": criar produto canónico + mapping (sem apagar legacy)
+      if(pid && pid !== legacy.id){
+        await setDoc(doc(db, COL_PRODUCTS, pid), {
+          name: String(name||"").trim(),
+          nameKey: normalizeProductName(name),
+          barcodes: arrayUnion(b),
+          updatedAt: serverTimestamp()
+        }, { merge:true });
+
+        await setDoc(doc(db, COL_PRODUCT_BARCODES, bKey), {
+          barcode: b,
+          productId: pid,
+          name: String(name||"").trim(),
+          updatedAt: serverTimestamp()
+        }, { merge:true });
+
+        invalidateCatalogCaches({ products:true, positions:false });
+        const pSnap = await getDoc(doc(db, COL_PRODUCTS, pid));
+        return pSnap.exists() ? ({ id: pid, ...pSnap.data() }) : legacy;
+      }
+
+      return legacy;
+    })().catch(err=>{
+      __productByBarcodePromiseCache.delete(b);
+      throw err;
+    });
+
+    __productByBarcodePromiseCache.set(b, task);
+    return task;
   }
+
   async function getPositionByBarcode(barcode){
     const b = normalizeBarcode(barcode);
     if(!b) return null;
-    const snap = await getDoc(doc(db, COL_POSITIONS, encodeKey(b)));
-    return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
+    const cached = getCachedPositionLookup(b);
+    if(cached) return cached;
+
+    const task = (async ()=>{
+      if(Array.isArray(state.cache.positions) && state.cache.positions.length){
+        const found = state.cache.positions.find(p=>normalizeBarcode(p.barcode)===b) || null;
+        if(found) return cachePositionRecord(found);
+      }
+      const snap = await getDoc(doc(db, COL_POSITIONS, encodeKey(b)));
+      if(snap.exists()) return cachePositionRecord({ id: snap.id, ...snap.data() });
+      cachePositionMiss(b);
+      return null;
+    })().catch(err=>{
+      __positionInputPromiseCache.delete("b:" + b);
+      throw err;
+    });
+
+    __positionInputPromiseCache.set("b:" + b, task);
+    return task;
   }
 
   async function getPositionByInput(input){
     const raw = String(input||"").trim();
     if(!raw) return null;
 
-    // 1) Try as barcode (document id = encoded barcode)
-    const b = normalizeBarcode(raw) || raw;
-    try{
-      const snap = await getDoc(doc(db, COL_POSITIONS, encodeKey(b)));
-      if(snap.exists()) return ({ id: snap.id, ...snap.data() });
-    }catch(_e){}
+    const cached = getCachedPositionLookup(raw);
+    if(cached) return cached;
 
-    // 2) Try as location code (field: code) - exact and uppercase
-    const code1 = raw;
-    const code2 = raw.toUpperCase();
-    for(const code of [code1, code2]){
-      const q = query(collection(db, COL_POSITIONS), where("code","==",code), limit(1));
-      const qs = await getDocs(q);
-      if(!qs.empty){
-        const d = qs.docs[0];
-        return ({ id: d.id, ...d.data() });
+    const task = (async ()=>{
+      // 0) Local/admin caches first
+      if(Array.isArray(state.cache.positions) && state.cache.positions.length){
+        const b = normalizeBarcode(raw);
+        const upper = raw.toUpperCase();
+        const found = state.cache.positions.find(p=>normalizeBarcode(p.barcode)===b || String(p.code||"").trim()===raw || String(p.code||"").trim().toUpperCase()===upper) || null;
+        if(found) return cachePositionRecord(found);
       }
-    }
-    return null;
+
+      // 1) Try as barcode (document id = encoded barcode)
+      const b = normalizeBarcode(raw) || raw;
+      try{
+        const snap = await getDoc(doc(db, COL_POSITIONS, encodeKey(b)));
+        if(snap.exists()) return cachePositionRecord({ id: snap.id, ...snap.data() });
+      }catch(_e){}
+
+      // 2) Try as location code (field: code) - exact and uppercase
+      const code1 = raw;
+      const code2 = raw.toUpperCase();
+      for(const code of [code1, code2]){
+        const q = query(collection(db, COL_POSITIONS), where("code","==",code), limit(1));
+        const qs = await getDocs(q);
+        if(!qs.empty){
+          const d = qs.docs[0];
+          return cachePositionRecord({ id: d.id, ...d.data() });
+        }
+      }
+
+      cachePositionMiss(raw);
+      return null;
+    })().catch(err=>{
+      __positionInputPromiseCache.delete("b:" + normalizeBarcode(raw));
+      __positionInputPromiseCache.delete("c:" + raw);
+      __positionInputPromiseCache.delete("c:" + raw.toUpperCase());
+      throw err;
+    });
+
+    __positionInputPromiseCache.set("b:" + normalizeBarcode(raw), task);
+    __positionInputPromiseCache.set("c:" + raw, task);
+    __positionInputPromiseCache.set("c:" + raw.toUpperCase(), task);
+    return task;
   }
 
   // Back-compat
@@ -534,11 +682,13 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       name: nm,
       updatedAt: serverTimestamp()
     }, { merge:true });
+    invalidateCatalogCaches({ products:true, positions:false });
   }
   async function upsertPosition({code, barcode}){
     const b = normalizeBarcode(barcode);
     if(!code || !b) throw new Error("Location e barcode são obrigatórios.");
     await setDoc(doc(db, COL_POSITIONS, encodeKey(b)), { code: code.trim().toUpperCase(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
+    invalidateCatalogCaches({ products:false, positions:true });
   }
 
   function getProductBarcodes(p){
@@ -580,9 +730,16 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     const rawProducts = pSnap.docs.map(d=>({id:d.id, ...d.data()}));
     state.cache.productsRaw = rawProducts;
     state.cache.products = mergeProductsForAdmin(rawProducts);
+    __productsMapPromise = Promise.resolve(new Map(rawProducts.map(p=>[p.id, p])));
+    cacheProductGroupsFromRows(rawProducts);
+    __productByBarcodePromiseCache.clear();
+
     const sSnap = await getDocs(collection(db, COL_POSITIONS));
     state.cache.positions = sSnap.docs.map(d=>({id:d.id, ...d.data()}))
       .sort((a,b)=>(a.code||"").localeCompare(b.code||"", "pt", {sensitivity:"base"}));
+    __positionInputPromiseCache.clear();
+    __positionByIdCache.clear();
+    state.cache.positions.forEach(cachePositionRecord);
   }
 
   function parseCSV(text){
@@ -1973,53 +2130,61 @@ reset();
     const pbc = normalizeBarcode(palletBarcode);
     if(!pbc) return { ok:false, reason:"sem_dados" };
 
-    const qy = query(
-      collection(db, COL_STOCK),
-      where("palletBarcode", "==", pbc)
-    );
-    const snap = await getDocs(qy);
-
-    if(snap.empty) return { ok:false, reason:"nao_encontrado", pbc };
-
-    // Map results with position/product info
-    const docs = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-    const posIds = [...new Set(docs.map(x=>x.positionId).filter(Boolean))];
-    const prodIds = [...new Set(docs.map(x=>x.productId).filter(Boolean))];
-
-    const posSnaps = await Promise.all(posIds.map(id=>getDoc(doc(db, COL_POSITIONS, id))));
-    // Resolve products (canonical by name; supports legacy productId stored as barcodeKey)
-    const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? ({id, ...posSnaps[i].data()}) : ({id, code:id}) ]));
-
-    const prodMap = new Map();
-    for(const id of prodIds){
-      let pSnap = await getDoc(doc(db, COL_PRODUCTS, id));
-      if(pSnap.exists()){
-        prodMap.set(id, {id, ...pSnap.data()});
-        continue;
-      }
-      // legacy: stock productId may be barcodeKey -> mapping in productBarcodes/{barcodeKey}
-      const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, id));
-      if(mapSnap.exists()){
-        const pid = mapSnap.data().productId;
-        const p2 = await getDoc(doc(db, COL_PRODUCTS, pid));
-        if(p2.exists()){
-          prodMap.set(id, {id:pid, ...p2.data(), legacyId:id});
-          continue;
-        }
-      }
-      prodMap.set(id, {id, name:id, barcodes:[]});
+    const cached = __palletResolutionPromiseCache.get(pbc);
+    if(cached){
+      if(cached.promise) return cached.promise;
+      if(cached.value && (Date.now() - cached.ts) < PALLET_RESOLUTION_TTL_MS) return cached.value;
+      __palletResolutionPromiseCache.delete(pbc);
     }
 
-    const rows = docs.map(s=>{
-      const pos = posMap.get(s.positionId) || {id:s.positionId, code:s.positionId};
-      const prod = prodMap.get(s.productId) || {id:s.productId, name:s.productId, barcode:""};
-      return { stock:s, position:pos, product:prod };
+    const task = (async ()=>{
+      const qy = query(
+        collection(db, COL_STOCK),
+        where("palletBarcode", "==", pbc)
+      );
+      const snap = await getDocs(qy);
+
+      if(snap.empty){
+        const result = { ok:false, reason:"nao_encontrado", pbc };
+        __palletResolutionPromiseCache.set(pbc, { ts:Date.now(), value:result });
+        return result;
+      }
+
+      // Map results with position/product info
+      const docs = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      const posIds = [...new Set(docs.map(x=>x.positionId).filter(Boolean))];
+      const prodIds = [...new Set(docs.map(x=>x.productId).filter(Boolean))];
+
+      const positions = await Promise.all(posIds.map(id=>loadPositionById(id)));
+      const posMap = new Map(posIds.map((id,i)=>[id, positions[i] || ({id, code:id}) ]));
+      const prodInfoMap = await resolveCanonicalProductsForIds(prodIds);
+
+      const rows = docs.map(s=>{
+        const pos = posMap.get(s.positionId) || {id:s.positionId, code:s.positionId};
+        const info = prodInfoMap.get(s.productId) || { canonicalId:s.productId, name:s.productId, barcodes:[] };
+        const primaryBarcode = Array.isArray(info.barcodes) && info.barcodes.length ? info.barcodes[0] : "";
+        const prod = {
+          id: info.canonicalId || s.productId,
+          name: info.name || s.productId,
+          barcode: primaryBarcode,
+          barcodes: info.barcodes || []
+        };
+        return { stock:s, position:pos, product:prod, productCanonicalId: prod.id || s.productId };
+      });
+
+      const result = (rows.length > 1)
+        ? { ok:false, reason:"multiplo", pbc, rows }
+        : { ok:true, pbc, productCanonicalId: rows[0].productCanonicalId, ...rows[0] };
+
+      __palletResolutionPromiseCache.set(pbc, { ts:Date.now(), value:result });
+      return result;
+    })().catch(err=>{
+      __palletResolutionPromiseCache.delete(pbc);
+      throw err;
     });
 
-    // If more than 1, return list to choose
-    if(rows.length > 1) return { ok:false, reason:"multiplo", pbc, rows };
-
-    return { ok:true, pbc, productCanonicalId: (rows[0].product && rows[0].product.id) ? rows[0].product.id : (rows[0].stock && rows[0].stock.productId), ...rows[0] };
+    __palletResolutionPromiseCache.set(pbc, { ts:Date.now(), promise:task });
+    return task;
   }
 
 
@@ -2419,12 +2584,32 @@ function setupRemove(){
   }
 
   async function loadPositionById(id){
+    if(!id) return null;
+    if(__positionByIdCache.has(id)) return __positionByIdCache.get(id);
     const snap = await getDoc(doc(db, COL_POSITIONS, id));
-    return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
+    return snap.exists() ? cachePositionRecord({ id: snap.id, ...snap.data() }) : null;
   }
   async function loadProductById(id){
+    if(!id) return null;
+    if(Array.isArray(state.cache.productsRaw) && state.cache.productsRaw.length){
+      const found = state.cache.productsRaw.find(p=>p.id===id);
+      if(found) return found;
+    }
+    if(__productsMapPromise){
+      try{
+        const prodMap = await __productsMapPromise;
+        if(prodMap.has(id)) return prodMap.get(id);
+      }catch(_e){}
+    }
     const snap = await getDoc(doc(db, COL_PRODUCTS, id));
-    return snap.exists() ? ({ id: snap.id, ...snap.data() }) : null;
+    if(snap.exists()) return ({ id: snap.id, ...snap.data() });
+    const mapSnap = await getDoc(doc(db, COL_PRODUCT_BARCODES, id));
+    if(mapSnap.exists()){
+      const pid = mapSnap.data().productId;
+      const p2 = await getDoc(doc(db, COL_PRODUCTS, pid));
+      if(p2.exists()) return ({ id: pid, ...p2.data(), legacyId:id });
+    }
+    return null;
   }
 
   async function listStockByPallet(palletBarcode){
@@ -2752,16 +2937,33 @@ mMove.onclick = async ()=>{
   let __productsMapPromise = null;
   async function getProductsMapCached(){
     if(__productsMapPromise) return __productsMapPromise;
+    if(Array.isArray(state.cache.productsRaw) && state.cache.productsRaw.length){
+      __productsMapPromise = Promise.resolve(new Map(state.cache.productsRaw.map(p=>[p.id, p])));
+      return __productsMapPromise;
+    }
     __productsMapPromise = (async ()=>{
-      const prodSnap = await getDocs(query(collection(db, COL_PRODUCTS), limit(3000)));
+      const prodSnap = await getDocs(collection(db, COL_PRODUCTS));
       const prodMap = new Map();
+      const rawProducts = [];
       prodSnap.forEach(d=>{
-        const p = d.data() || {};
-        prodMap.set(d.id, ({ id:d.id, ...p }));
+        const p = ({ id:d.id, ...(d.data() || {}) });
+        rawProducts.push(p);
+        prodMap.set(d.id, p);
       });
+      state.cache.productsRaw = rawProducts;
+      cacheProductGroupsFromRows(rawProducts);
       return prodMap;
     })();
     return __productsMapPromise;
+  }
+
+  async function getProductsGroupedCached(){
+    if(__productGroupsPromise) return __productGroupsPromise;
+    if(Array.isArray(state.cache.productsRaw) && state.cache.productsRaw.length){
+      return Promise.resolve(cacheProductGroupsFromRows(state.cache.productsRaw));
+    }
+    const prodMap = await getProductsMapCached();
+    return cacheProductGroupsFromRows(Array.from(prodMap.values()));
   }
 
   // Cache do snapshot de stock para evitar leituras repetidas (ex.: totais gerais)
@@ -2769,6 +2971,7 @@ mMove.onclick = async ()=>{
 
   function invalidateDerivedCaches(){
     __stockSnapPromise = null;
+    __palletResolutionPromiseCache.clear();
   }
 
   async function resolveCanonicalProductsForIds(rawProdIds){
@@ -3009,33 +3212,7 @@ function getProductBarcodes(p){
     const reset=()=>{ chosen=null; inp.value=""; info.textContent=""; msg.innerHTML=""; results.innerHTML=""; inp.focus(); };
 
     async function getProductsGrouped(){
-      const snap = await getDocs(collection(db, COL_PRODUCTS));
-      const map = new Map();
-      snap.forEach(d=>{
-        const p = d.data() || {};
-        const name = String(p.name||"").trim();
-        if(!name) return;
-
-        const key = normalizeProductName(name);
-        const canonicalId = productIdFromName(name) || d.id;
-        const ent = map.get(key) || { id: canonicalId, name, productIds:new Set(), barcodes:new Set() };
-
-        ent.id = canonicalId;
-        ent.name = ent.name || name;
-        ent.productIds.add(canonicalId);
-        ent.productIds.add(d.id);
-        extractProductBarcodes(p).forEach(b=>ent.barcodes.add(b));
-        map.set(key, ent);
-      });
-
-      return Array.from(map.values())
-        .map(p=>({
-          id: p.id,
-          name: p.name,
-          productIds: Array.from(p.productIds).filter(Boolean),
-          barcodes: Array.from(p.barcodes).sort((a,b)=>String(a).localeCompare(String(b), "pt", {sensitivity:"base"}))
-        }))
-        .sort((a,b)=>a.name.localeCompare(b.name, "pt", {sensitivity:"base"}));
+      return await getProductsGroupedCached();
     }
 
     async function pickByText(txt){
@@ -3867,6 +4044,7 @@ async function load(){
       const mv2Ref = doc(collection(db, COL_MOVEMENTS));
       tx.set(mv2Ref, { type:"ANULACAO", ts:serverTimestamp(), userId:user.uid, userEmail:(user.email||""), refMovementId:mvId, reason }, {merge:true});
     });
+    invalidateDerivedCaches();
   }
 
   async function editMovement(mvId, patch, reason){
@@ -3974,6 +4152,7 @@ async function load(){
       const mv2Ref = doc(collection(db, COL_MOVEMENTS));
       tx.set(mv2Ref, { type:"EDICAO", ts:serverTimestamp(), userId:user.uid, userEmail:(user.email||""), refMovementId:mvId, reason }, {merge:true});
     });
+    invalidateDerivedCaches();
   }
 
 
