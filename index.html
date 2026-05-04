@@ -985,16 +985,17 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     const fromRef = doc(db, COL_STOCK, stockKey(fromPositionId, productId, palletId));
     const toRef   = doc(db, COL_STOCK, stockKey(toPositionId, productId, palletId));
 
-    // Verificar duplicado no destino
+    // Verificar conflito: a palete não pode existir noutro registo que não seja a própria origem ou destino.
+    // (a origem é a palete que estamos a mover — é esperado que exista; o destino é onde vai ficar)
     if(pbc){
       const dupQuery = query(collection(db, COL_STOCK), where("palletBarcode", "==", pbc));
       const dupSnap = await getDocs(dupQuery);
-      const toKey = stockKey(toPositionId, productId, palletId);
-      const fromKey = stockKey(fromPositionId, productId, palletId);
+      const toKey   = stockKey(toPositionId,   productId, palletId);
+      const fromKey = stockKey(fromPositionId,  productId, palletId);
       const conflicting = dupSnap.docs.filter(d => d.id !== toKey && d.id !== fromKey);
       if(conflicting.length > 0){
         const c = conflicting[0].data();
-        throw new Error(`A palete "${pbc}" já existe noutro registo (posição: ${c.positionId || "?"}). Não é possível mover.`);
+        throw new Error(`A palete "${pbc}" já existe noutro registo distinto (posição: ${c.positionId || "?"}). Resolve o conflito antes de mover.`);
       }
     }
 
@@ -1072,6 +1073,19 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       const qtyP = Number(data.qtyPallets||0);
       const pbc = normalizeBarcode(data.palletBarcode || "");
       const palId = palletIdFromBarcode(pbc);
+
+      // Verificar conflito: a palete não pode existir noutro registo que não seja
+      // ela própria (origem) ou o destino calculado.
+      if(pbc){
+        const toKeyCheck   = stockKey(toPositionId,   prodId, palId);
+        const fromKeyCheck = d.id; // é o próprio registo de origem
+        const dup = await getDocs(query(collection(db, COL_STOCK), where("palletBarcode","==",pbc)));
+        const conflicts = dup.docs.filter(x => x.id !== toKeyCheck && x.id !== fromKeyCheck);
+        if(conflicts.length > 0){
+          const cp = conflicts[0].data();
+          throw new Error(`A palete "${pbc}" já existe noutro registo distinto (posição: ${cp.positionId||"?"}). Resolve o conflito antes de usar "Mover Tudo".`);
+        }
+      }
 
       if(qtyU<=0 && qtyP<=0) continue;
 
