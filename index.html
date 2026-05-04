@@ -782,6 +782,23 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
 
     const org = (origin||"").toString().trim().toUpperCase();
 
+    // ===== Verificar duplicado de palete =====
+    // Se a palete já existe noutro stockItem (posição ou produto diferente), impedir o registo.
+    if(pbc){
+      const dupQuery = query(
+        collection(db, COL_STOCK),
+        where("palletBarcode", "==", pbc)
+      );
+      const dupSnap = await getDocs(dupQuery);
+      const conflicting = dupSnap.docs.filter(d => d.id !== key);
+      if(conflicting.length > 0){
+        const c = conflicting[0].data();
+        const conflictPos = c.positionId || "?";
+        throw new Error(`A palete "${pbc}" já existe no stock (posição: ${conflictPos}). Cada palete só pode estar registada uma vez.`);
+      }
+    }
+    // =========================================
+
     await runTransaction(db, async (tx)=>{
       const snap = await tx.get(ref);
       const curU = snap.exists() ? Number(snap.data().qtyUnits || 0) : 0;
@@ -844,6 +861,21 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     const key = stockKey(positionId, productId, palletId);
     const ref = doc(db, COL_STOCK, key);
     const pbc = normalizeBarcode(palletBarcode);
+
+    // Verificar duplicado de palete
+    if(pbc){
+      const dupQuery = query(
+        collection(db, COL_STOCK),
+        where("palletBarcode", "==", pbc)
+      );
+      const dupSnap = await getDocs(dupQuery);
+      const conflicting = dupSnap.docs.filter(d => d.id !== key);
+      if(conflicting.length > 0){
+        const c = conflicting[0].data();
+        throw new Error(`A palete "${pbc}" já existe no stock (posição: ${c.positionId || "?"}). Cada palete só pode estar registada uma vez.`);
+      }
+    }
+
     await setDoc(ref, {
       positionId, productId,
       palletBarcode: pbc || "",
@@ -952,6 +984,19 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
 
     const fromRef = doc(db, COL_STOCK, stockKey(fromPositionId, productId, palletId));
     const toRef   = doc(db, COL_STOCK, stockKey(toPositionId, productId, palletId));
+
+    // Verificar duplicado no destino
+    if(pbc){
+      const dupQuery = query(collection(db, COL_STOCK), where("palletBarcode", "==", pbc));
+      const dupSnap = await getDocs(dupQuery);
+      const toKey = stockKey(toPositionId, productId, palletId);
+      const fromKey = stockKey(fromPositionId, productId, palletId);
+      const conflicting = dupSnap.docs.filter(d => d.id !== toKey && d.id !== fromKey);
+      if(conflicting.length > 0){
+        const c = conflicting[0].data();
+        throw new Error(`A palete "${pbc}" já existe noutro registo (posição: ${c.positionId || "?"}). Não é possível mover.`);
+      }
+    }
 
     await runTransaction(db, async (tx)=>{
       const fromSnap = await tx.get(fromRef);
@@ -1109,6 +1154,15 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     });
   }
 
+  const TAB_TITLES = {
+    admin: "Admin",
+    operacao: "Operations",
+    consultar: "Lookup",
+    stock: "Stock",
+    movimentos: "Movements",
+    paletes: "Pallets"
+  };
+
   function render(){
 const u = auth.currentUser;
 
@@ -1124,6 +1178,7 @@ const u = auth.currentUser;
     }
 
     renderTabs();
+    document.title = (TAB_TITLES[state.tab] || state.tab) + " | Warehouse";
 
     if(state.tab==="admin"){
       if(!canAdmin(u)){ state.tab="operacao"; renderOperacao(); return; }
@@ -1995,7 +2050,7 @@ $("pSearch").oninput = renderProductsTable;
 
               <div class="right" style="margin-top:10px">
                 <button class="btn ghost" id="eClear">Clear</button>
-                <button class="btn ok" id="eDel" disabled>Eliminar</button>
+                <button class="btn danger" id="eDel" disabled>Eliminar</button>
               </div>
 
               <div id="eMsg"></div>
@@ -2075,7 +2130,30 @@ try{
     if(aOrigin) aOrigin.addEventListener("change", enable);
     if(aType) aType.addEventListener("change", enable);
     if(aStatus) aStatus.addEventListener("change", enable);
-    if(aPal) aPal.addEventListener("input", enable);
+
+    // Verificação em tempo real da palete (debounce 600ms)
+    let _palCheckTimer = null;
+    if(aPal) aPal.addEventListener("input", ()=>{
+      enable();
+      clearTimeout(_palCheckTimer);
+      const code = normalizeBarcode(aPal.value);
+      if(!code) return;
+      _palCheckTimer = setTimeout(async ()=>{
+        try{
+          const dupQuery = query(collection(db, COL_STOCK), where("palletBarcode","==", code));
+          const dupSnap = await getDocs(dupQuery);
+          if(!dupSnap.empty){
+            const c = dupSnap.docs[0].data();
+            aMsg.innerHTML = msgBox(`⚠️ A palete <b>${esc(code)}</b> já existe no stock (posição: ${esc(c.positionId||"?")}). Não poderás guardar com este código.`, "warn");
+          } else {
+            // limpar aviso anterior de duplicado se código mudou para um válido
+            const currentMsg = aMsg.innerHTML;
+            if(currentMsg.includes("já existe no stock")) aMsg.innerHTML = "";
+          }
+        }catch(_e){}
+      }, 600);
+    });
+
     aQtyU.addEventListener("input", enable);
     aQtyP.addEventListener("input", enable);
     aQtyU.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); aOk.click(); }});
@@ -2106,13 +2184,18 @@ aOk.onclick = async ()=>{
           throw new Error("Seleciona a ORIGEM (" + (ORIGINS.length ? ORIGINS.join("/") : "configurar no Admin") + ").");
         }
         if(!(pos && prod && (qtyU>0 || qtyP>0))) throw new Error("Falta QTD (UND e/ou Pallets).");
+        aOk.disabled=true; aOk.textContent="A guardar...";
         await addStock(pos.id, prod.id, aPal.value, aType.value, qtyU, qtyP, origin);
         aMsg.innerHTML = msgBox(`✅ OK • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(aType.value)} • ${esc(origin)} • +${qtyU} UND • +${qtyP} Pal`, "ok");
         // manter posição/produto para repetir
         aPal.value=""; aQtyU.value=""; aQtyP.value="";
+        aOk.textContent="Criar";
         aOk.disabled=true;
         aPal.focus();
-      }catch(err){ aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err"); }
+      }catch(err){
+        aOk.disabled=false; aOk.textContent="Criar";
+        aMsg.innerHTML=msgBox("Erro: "+esc(err.message), "err");
+      }
     };
 
     aClear.onclick = reset;
@@ -2369,12 +2452,14 @@ function setupRemove(){
         const qtyP=Math.floor(Number(rQtyP.value||0));
         if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD.");
         const sign = mode==="add" ? 1 : -1;
+        rDo.disabled=true; rDo.textContent="A guardar...";
         await addStock(pos.id, prod.id, pal, (stock.slotType||"PICKING"), sign*qtyU, sign*qtyP);
         const verb = mode==="add" ? "ADICIONADO" : "RETIRADO";
         const sym = mode==="add" ? "+" : "-";
         rMsg.innerHTML = msgBox(`✅ ${verb} • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(pal)} • ${sym}${qtyU} UND • ${sym}${qtyP} Pal`, "ok");
         reset();
       }catch(err){
+        rDo.disabled=false; rDo.textContent="Confirmar Ajuste";
         rMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
       }
     };
@@ -2660,13 +2745,16 @@ function setupRemove(){
         const srcPallet = palFrom ? palFrom : (rpPal.value || "");
         const dstPallet = palTo ? palTo : (rpToPal.value || "");
 
+        rpOk.disabled=true; rpOk.textContent="A processar...";
         await transferReplenish(fromPos.id, toPos.id, prod.id, srcPallet, dstPallet, qtyU, qtyP);
 
         setMsg(`✅ Reabastecido • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${qtyU} UND • ${qtyP} Pal`, "ok");
         rpQtyU.value=""; rpQtyP.value="";
+        rpOk.disabled=false; rpOk.textContent="Confirm";
         rpQtyU.focus();
         enable();
       }catch(err){
+        rpOk.disabled=false; rpOk.textContent="Confirm";
         setMsg("Erro: "+esc(err.message||err), "err");
       }
     };
@@ -2775,7 +2863,7 @@ function setupRemove(){
       ePal.focus();
     }
     reset();
-    eClear.onclick = reset;
+    if(eClear) eClear.onclick = reset;
 
     async function refreshInfo(){
       if(!pallet){ eDel.disabled=true; return; }
@@ -2786,7 +2874,6 @@ function setupRemove(){
         eMsg.innerHTML = msgBox("Pallet não existe no stock.", "err");
         return;
       }
-      // Build simple list
       const lines = [];
       for(const r of rows.slice(0,12)){
         const pos = await loadPositionById(r.positionId||"");
@@ -2817,13 +2904,13 @@ function setupRemove(){
     eDel.onclick = async ()=>{
       try{
         if(!pallet) throw new Error("Falta palete.");
-        eDel.disabled=true;
+        eDel.disabled=true; eDel.textContent="A eliminar...";
         const n = await deletePalletEverywhere(pallet);
         eMsg.innerHTML = msgBox(`✅ Eliminada palete ${esc(pallet)} (${n} linha(s)).`, "ok");
         if(window.matchMedia("(max-width: 820px)").matches){ state.op="menu"; renderOperacao(); }
         else reset();
       }catch(err){
-        eDel.disabled=false;
+        eDel.disabled=false; eDel.textContent="Eliminar";
         eMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
       }
     };
@@ -2954,10 +3041,12 @@ mMove.onclick = async ()=>{
         if(mQtyU) mQtyU.value = String(u);
         if(mQtyP) mQtyP.value = String(p);
         const st = (mStatus && mStatus.value) ? mStatus.value : "";
+        mMove.disabled=true; mMove.textContent="A mover...";
         await moveStock(fromPos.id, toPos.id, prod.id, pal, u, p, st);
         mMsg.innerHTML = msgBox(`✅ MOVIDO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${esc(pal)}`, "ok");
         reset();
       }catch(err){
+        mMove.disabled=false; mMove.textContent="Mover";
         mMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
       }
     };
@@ -3015,10 +3104,30 @@ mMove.onclick = async ()=>{
           <div id="csResults"></div>
         </div>
       </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2>Por Palete</h2>
+        <div class="hint">Pica o código de palete para ver onde está, o produto e as quantidades.</div>
+        <div class="row" style="margin-top:10px">
+          <div class="field">
+            <label>PALETE (código)</label>
+            <input id="clPal" class="mono" placeholder="Picar palete..." />
+            <div class="hint" id="clPalInfo"></div>
+          </div>
+          <div class="right">
+            <button class="btn ok" id="clGo">Procurar</button>
+            <button class="btn ghost" id="clClear">Clear</button>
+          </div>
+        </div>
+        <div id="clMsg"></div>
+        <div class="divider"></div>
+        <div id="clResults"></div>
+      </div>
     `;
     setupLookupProduto();
     setupLookupPosicao();
     setupTotaisProduto();
+    setupLookupPalete();
 
     const btnS = $("btnExportStock");
     const btnM = $("btnExportMov");
@@ -3442,15 +3551,18 @@ mMove.onclick = async ()=>{
             <table>
               <thead><tr><th>Location</th><th>Pallet</th><th>Status</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
               <tbody>
-                ${view.map(v=>`
-                  <tr>
+                ${view.map(v=>{
+                  const slotBadge = v.slotType==="COMPLETA"
+                    ? `<span style="background:rgba(23,143,99,.15);color:var(--ok);border:1px solid rgba(23,143,99,.3);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">COMPLETA</span>`
+                    : `<span style="background:rgba(31,138,112,.10);color:var(--accent);border:1px solid rgba(31,138,112,.25);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">PICKING</span>`;
+                  return `<tr>
                     <td><span class="mono">${esc(v.posCode)}</span></td>
                     <td><span class="mono">${esc(v.palletBarcode || "—")}</span></td>
                     <td>${esc(v.status || "—")}</td>
-                    <td>${esc(v.slotType)}</td>
+                    <td>${slotBadge}</td>
                     <td><b>${v.qtyUnits}</b></td><td><b>${v.qtyPallets}</b></td>
-                  </tr>
-                `).join("")}
+                  </tr>`;
+                }).join("")}
               </tbody>
             </table>
           </div>
@@ -3543,20 +3655,96 @@ mMove.onclick = async ()=>{
             <table>
               <thead><tr><th>Produto</th><th>Pallet</th><th>Status</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
               <tbody>
-                ${view.map(v=>`
-                  <tr>
+                ${view.map(v=>{
+                  const slotBadge = v.slotType==="COMPLETA"
+                    ? `<span style="background:rgba(23,143,99,.15);color:var(--ok);border:1px solid rgba(23,143,99,.3);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">COMPLETA</span>`
+                    : `<span style="background:rgba(31,138,112,.10);color:var(--accent);border:1px solid rgba(31,138,112,.25);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">PICKING</span>`;
+                  return `<tr>
                     <td>${esc(v.prodName)}</td>
                     <td><span class="mono">${esc(v.palletBarcode || "—")}</span></td>
                     <td>${esc(v.status || "—")}</td>
-                    <td>${esc(v.slotType)}</td>
+                    <td>${slotBadge}</td>
                     <td><b>${v.qtyUnits}</b></td><td><b>${v.qtyPallets}</b></td>
-                  </tr>
-                `).join("")}
+                  </tr>`;
+                }).join("")}
               </tbody>
             </table>
           </div>
         `;
       }catch(err){ msg.innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
+    }
+
+    inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); run(); }});
+    go.onclick = run;
+    clear.onclick = reset;
+    reset();
+  }
+
+  function setupLookupPalete(){
+    const inp = $("clPal"), go = $("clGo"), clear = $("clClear");
+    const msg = $("clMsg"), info = $("clPalInfo"), results = $("clResults");
+
+    const reset=()=>{ inp.value=""; info.textContent=""; msg.innerHTML=""; results.innerHTML=""; inp.focus(); };
+
+    async function run(){
+      try{
+        msg.innerHTML=""; results.innerHTML="";
+        const code = normalizeBarcode(inp.value);
+        if(!code){ msg.innerHTML = msgBox("Pica o código da palete.", "warn"); return; }
+        info.textContent = "A procurar...";
+        const res = await resolvePalletGlobal(code);
+        if(!res.ok && res.reason==="nao_encontrado"){
+          info.textContent = "";
+          msg.innerHTML = msgBox("Palete não encontrada no stock.", "err");
+          return;
+        }
+        if(res.ok){
+          info.textContent = "✅ Encontrada";
+          const s = res.stock || {};
+          const slotType = String(s.slotType||"PICKING").toUpperCase();
+          const badge = slotType==="COMPLETA"
+            ? `<span style="background:rgba(23,143,99,.15);color:var(--ok);border:1px solid rgba(23,143,99,.3);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">COMPLETA</span>`
+            : `<span style="background:rgba(31,138,112,.10);color:var(--accent);border:1px solid rgba(31,138,112,.25);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">PICKING</span>`;
+          results.innerHTML = `
+            <div style="overflow:auto">
+              <table>
+                <thead><tr><th>Location</th><th>Produto</th><th>Tipo</th><th>Status</th><th>UND</th><th>Pal</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><span class="mono">${esc(res.position.code||res.position.id||"—")}</span></td>
+                    <td>${esc(res.product.name||"—")}</td>
+                    <td>${badge}</td>
+                    <td>${esc(s.status||"—")}</td>
+                    <td><b>${Number(s.qtyUnits||0)}</b></td>
+                    <td><b>${Number(s.qtyPallets||0)}</b></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>`;
+        } else if(res.reason==="multiplo"){
+          // palete em várias linhas (não devia acontecer após a validação de duplicado)
+          info.textContent = "⚠️ Duplicado";
+          const rows = res.rows || [];
+          results.innerHTML = `
+            <div class="msg warn" style="margin-bottom:8px">⚠️ Esta palete aparece em ${rows.length} linhas (duplicado).</div>
+            <div style="overflow:auto">
+              <table>
+                <thead><tr><th>Location</th><th>Produto</th><th>Tipo</th><th>UND</th><th>Pal</th></tr></thead>
+                <tbody>
+                  ${rows.map(r=>`
+                    <tr>
+                      <td><span class="mono">${esc(r.position.code||r.position.id||"—")}</span></td>
+                      <td>${esc(r.product.name||"—")}</td>
+                      <td>${esc(r.stock.slotType||"—")}</td>
+                      <td><b>${Number(r.stock.qtyUnits||0)}</b></td>
+                      <td><b>${Number(r.stock.qtyPallets||0)}</b></td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>`;
+        }
+      }catch(err){ info.textContent=""; msg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err"); }
     }
 
     inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); run(); }});
@@ -3690,7 +3878,7 @@ async function exportStockCSV(){
     const snap = await getDocs(collection(db, COL_MOVEMENTS));
     const rows = snap.docs.map(d=>({id:d.id, ...d.data()}));
 
-    const header = ["ts","type","userId","positionId","fromPositionId","toPositionId","productId","palletBarcode","slotType","qtyUnits","qtyPallets"].join(";");
+    const header = ["ts","type","userId","userEmail","userLabel","positionId","fromPositionId","toPositionId","productId","palletBarcode","slotType","qtyUnits","qtyPallets"].join(";");
     const lines = rows
       .sort((a,b)=>{
         const ta = (a.ts && a.ts.toDate) ? a.ts.toDate().getTime() : 0;
@@ -3703,6 +3891,8 @@ async function exportStockCSV(){
           csvEscape(ts),
           csvEscape(r.type || ""),
           csvEscape(r.userId || ""),
+          csvEscape(r.userEmail || ""),
+          csvEscape(r.userLabel || (r.userEmail||"").split("@")[0] || ""),
           csvEscape(r.positionId || ""),
           csvEscape(r.fromPositionId || ""),
           csvEscape(r.toPositionId || ""),
@@ -3780,6 +3970,14 @@ async function exportStockCSV(){
           <div class="field">
             <label>Filtro (texto)</label>
             <input id="mvFilter" placeholder="posição / produto / palete / tipo / user" />
+          </div>
+          <div class="field">
+            <label>De (data)</label>
+            <input id="mvDateFrom" type="date" />
+          </div>
+          <div class="field">
+            <label>Até (data)</label>
+            <input id="mvDateTo" type="date" />
           </div>
           <div class="right">
             <button class="btn ghost" id="mvReload">Refresh</button>
@@ -3875,6 +4073,8 @@ async function exportStockCSV(){
     const mvReload = $("mvReload");
     const mvLimit = $("mvLimit");
     const mvFilter = $("mvFilter");
+    const mvDateFrom = $("mvDateFrom");
+    const mvDateTo = $("mvDateTo");
     const mvExport = $("mvExport");
 
     const grandTotals = $("grandTotals");
@@ -3938,6 +4138,10 @@ async function load(){
       const rows = snap.docs.map(d=>({id:d.id, ...d.data()}));
       const term = (mvFilter.value||"").toLowerCase().trim();
 
+      // Filtro de datas
+      const dateFrom = mvDateFrom && mvDateFrom.value ? new Date(mvDateFrom.value + "T00:00:00") : null;
+      const dateTo   = mvDateTo   && mvDateTo.value   ? new Date(mvDateTo.value   + "T23:59:59") : null;
+
       // Map ids -> nomes/códigos (best effort)
       const posIds = [...new Set(rows.flatMap(r=>[r.positionId,r.fromPositionId,r.toPositionId]).filter(Boolean))];
       const prodIds = [...new Set(rows.map(r=>r.productId).filter(Boolean))];
@@ -3972,6 +4176,14 @@ async function load(){
 
         const hay = `${ts} ${type} ${pos} ${from} ${to} ${prod} ${prodNameInline} ${prodBarcode} ${pal} ${slot} ${u} ${p} ${user}`.toLowerCase();
         if(term && !hay.includes(term)) return null;
+
+        // Filtro de data
+        if(dateFrom || dateTo){
+          const rowDate = r.ts && r.ts.toDate ? r.ts.toDate() : null;
+          if(!rowDate) return null;
+          if(dateFrom && rowDate < dateFrom) return null;
+          if(dateTo   && rowDate > dateTo)   return null;
+        }
 
         return { ...r, _ts: ts, _type:type, _pos:pos, _from:from, _to:to, _prod:prod, _pal:pal, _slot:slot, _u:u, _p:p, _user:user, _cancelled:cancelled };
       }).filter(Boolean);
@@ -4008,6 +4220,8 @@ async function load(){
     if(grandReload) grandReload.onclick = loadGrandTotals;
     mvLimit.onchange = load;
     mvFilter.oninput = load;
+    if(mvDateFrom) mvDateFrom.onchange = load;
+    if(mvDateTo)   mvDateTo.onchange   = load;
 
     mvExport.onclick = async ()=>{
       try{
