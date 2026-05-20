@@ -21,7 +21,13 @@
   }
   *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
   body{margin:0;background:linear-gradient(180deg,var(--bg),#ffffff);color:var(--text)}
-  header{position:sticky;top:0;z-index:10;background:rgba(246,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--stroke)}
+  :root{--app-header-h:0px}
+  #appShell > header{position:fixed !important;top:0;left:0;right:0;width:100%;z-index:10000 !important;background:rgba(246,247,251,.98);backdrop-filter:blur(10px);border-bottom:1px solid var(--stroke);box-shadow:0 2px 14px rgba(16,22,36,.04)}
+  #appShell > .wrap{padding-top:calc(var(--app-header-h,0px) + 12px) !important}
+  #appShell > header .tabs{position:static !important}
+  html{scroll-padding-top:calc(var(--app-header-h,0px) + 18px)}
+  [id]{scroll-margin-top:calc(var(--app-header-h,0px) + 18px)}
+  header{position:sticky;top:0;z-index:1200;background:rgba(246,247,251,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--stroke)}
   .wrap{max-width:1100px;margin:0 auto;padding:12px 14px}
   h1{margin:0;font-size:15px;letter-spacing:.2px}
   h2{margin:0 0 8px;font-size:16px}
@@ -163,6 +169,7 @@
   .app{ padding: 10px; }
   .card{ border-radius: 16px; }
   .tabs{ position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.95); backdrop-filter: blur(8px); }
+  #appShell > header .tabs{ position: static !important; top:auto !important; }
   .tabbtn{ padding: 12px 12px; font-size: 15px; }
   input, select, textarea{ font-size: 18px; height: 48px; }
   textarea{ height: auto; }
@@ -170,6 +177,149 @@
   .row{ gap: 10px; }
   .hint{ font-size: 13px; line-height: 1.3; }
 }
+
+  /* ===== Mapa Armazém (novo separador) ===== */
+  #mapPage{
+    --map-bg:#0e0f11;
+    --map-surface:#16181c;
+    --map-surface2:#1e2026;
+    --map-border:rgba(255,255,255,.10);
+    --map-text:#f0f2f5;
+    --map-muted:#8a91a4;
+    --map-accent:#f0c040;
+    --map-ok:#3ecf8e;
+    --map-warn:#f0c040;
+    --map-danger:#ff5e5e;
+    --map-picking:#7b9cff;
+    --map-empty:#2a2d35;
+    --map-corridor:#0e0f11;
+    background:var(--map-bg);
+    color:var(--map-text);
+    border-radius:18px;
+    padding:14px;
+    border:1px solid rgba(0,0,0,.06);
+    box-shadow:var(--shadow);
+  }
+  #mapPage *{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  #mapPage .map-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  #mapPage .map-brand{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;font-size:18px;font-weight:900;letter-spacing:-.4px}
+  #mapPage .map-brand span{color:var(--map-accent)}
+  #mapPage .map-pill{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--map-border);font-size:12px;color:var(--map-muted)}
+  #mapPage .map-pill.ok{background:rgba(62,207,142,.10);border-color:rgba(62,207,142,.30);color:var(--map-ok)}
+  #mapPage .map-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #mapPage .map-btn{padding:10px 12px;border-radius:12px;border:1px solid var(--map-border);background:rgba(255,255,255,.07);color:var(--map-text);cursor:pointer;font-weight:800}
+  #mapPage .map-btn.primary{background:var(--map-accent);color:#000;border-color:transparent}
+  #mapPage .map-btn:hover{filter:brightness(1.08)}
+  #mapPage .map-config{display:none;background:var(--map-surface);border:1px solid var(--map-border);border-radius:14px;padding:14px;margin-bottom:14px}
+  #mapPage .map-config h3{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;font-size:15px;margin:0 0 10px;color:var(--map-accent)}
+  #mapPage .map-config p{font-size:12px;color:var(--map-muted);line-height:1.45;margin:0 0 12px}
+  #mapPage .map-cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
+  #mapPage .map-cfg-cell{background:var(--map-surface2);border:1px solid var(--map-border);border-radius:10px;padding:10px}
+  #mapPage .map-cfg-cell .pos-label{font-size:11px;color:var(--map-muted);margin-bottom:6px;text-transform:uppercase}
+  #mapPage .map-cfg-cell input,
+  #mapPage #mapAllVal{padding:8px 10px;border-radius:8px;border:1px solid var(--map-border);background:var(--map-bg);color:var(--map-text);font-size:14px;text-align:center;outline:none}
+  #mapPage .map-cfg-cell input{width:100%}
+  #mapPage .map-cfg-cell input:focus,
+  #mapPage #mapAllVal:focus{border-color:var(--map-accent)}
+  #mapPage .map-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+  #mapPage .map-stat{background:var(--map-surface);border:1px solid var(--map-border);border-radius:12px;padding:13px}
+  #mapPage .map-stat .n{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;font-size:26px;font-weight:900}
+  #mapPage .map-stat .l{font-size:11px;color:var(--map-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+  #mapPage .n.ok{color:var(--map-ok)} #mapPage .n.warn{color:var(--map-warn)} #mapPage .n.danger{color:var(--map-danger)} #mapPage .n.pick{color:var(--map-picking)}
+  #mapPage .map-legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:12px 14px;background:var(--map-surface);border:1px solid var(--map-border);border-radius:12px;margin-bottom:14px;font-size:12px}
+  #mapPage .map-leg-item{display:flex;align-items:center;gap:7px}
+  #mapPage .map-leg-dot{width:14px;height:14px;border-radius:4px}
+  #mapPage .map-wrap{overflow-x:auto;padding-bottom:8px}
+  #mapPage .wh-map{display:inline-flex;flex-direction:column;gap:0;min-width:620px;width:100%}
+  #mapPage .wh-row{display:flex;align-items:stretch;gap:0}
+  #mapPage .row-label{width:38px;min-width:38px;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;font-size:20px;font-weight:900;color:var(--map-accent);letter-spacing:-1px}
+  #mapPage .corridor-v{width:32px;min-width:32px;background:var(--map-corridor);display:flex;align-items:center;justify-content:center}
+  #mapPage .corridor-v-inner{writing-mode:vertical-rl;font-size:9px;color:rgba(255,255,255,.16);text-transform:uppercase;letter-spacing:2px}
+  #mapPage .slot{flex:1;border-radius:10px;border:2px solid transparent;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:transform .12s,box-shadow .12s;position:relative}
+  #mapPage .slot:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.42);z-index:2}
+  #mapPage .slot .slot-id{font-size:10px;color:rgba(255,255,255,.48)}
+  #mapPage .slot .slot-count{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;font-size:23px;font-weight:900}
+  #mapPage .slot .slot-cap{font-size:10px;color:rgba(255,255,255,.44)}
+  #mapPage .slot .slot-type{font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:4px;margin-top:2px}
+  #mapPage .slot.empty{background:var(--map-empty);border-color:rgba(255,255,255,.06)}
+  #mapPage .slot.empty .slot-count{color:rgba(255,255,255,.22)}
+  #mapPage .slot.partial{background:rgba(240,192,64,.08);border-color:rgba(240,192,64,.25)}
+  #mapPage .slot.partial .slot-count{color:var(--map-warn)}
+  #mapPage .slot.full{background:rgba(62,207,142,.08);border-color:rgba(62,207,142,.25)}
+  #mapPage .slot.full .slot-count{color:var(--map-ok)}
+  #mapPage .slot.overflow{background:rgba(255,94,94,.10);border-color:rgba(255,94,94,.35)}
+  #mapPage .slot.overflow .slot-count{color:var(--map-danger)}
+  #mapPage .slot.picking-ok{background:rgba(123,156,255,.08);border-color:rgba(123,156,255,.25)}
+  #mapPage .slot.picking-ok .slot-count{color:var(--map-picking)}
+  #mapPage .slot.picking-over{background:rgba(123,156,255,.12);border-color:rgba(123,156,255,.40)}
+  #mapPage .slot.picking-over .slot-count{color:#afc4ff}
+  #mapPage .slot.no-cap{background:var(--map-empty);border-color:rgba(255,255,255,.04);opacity:.55}
+  #mapPage .type-badge-completa{background:rgba(62,207,142,.15);color:var(--map-ok)}
+  #mapPage .type-badge-picking{background:rgba(123,156,255,.15);color:var(--map-picking)}
+  #mapPage .tooltip{display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#1e2026;border:1px solid var(--map-border);border-radius:10px;padding:10px 13px;min-width:210px;max-width:320px;z-index:100;font-size:12px;line-height:1.6;box-shadow:0 8px 30px rgba(0,0,0,.5);white-space:normal;text-align:left}
+  #mapPage .slot:hover .tooltip{display:block}
+  #mapPage .tooltip strong{color:var(--map-text)}
+  #mapPage .tt-row{display:flex;justify-content:space-between;gap:16px}
+  #mapPage .tt-ok{color:var(--map-ok)} #mapPage .tt-warn{color:var(--map-warn)} #mapPage .tt-danger{color:var(--map-danger)} #mapPage .tt-pick{color:var(--map-picking)}
+  #mapPage .map-load{text-align:center;padding:34px;color:var(--map-muted);font-size:14px}
+  body.map-tab-active #appShell > header{background:#f6f7fb !important;backdrop-filter:none !important;z-index:10000 !important}
+  body.map-modal-open{overflow:hidden}
+  body.map-modal-open #appShell > header{z-index:10000 !important}
+  @media(max-width:820px){
+    #mapPage{border-radius:16px;padding:10px}
+    #mapPage .map-head{align-items:flex-start}
+    #mapPage .map-btn{min-height:44px}
+    #mapPage .wh-map{min-width:720px}
+    #mapPage .slot{min-height:78px}
+  }
+
+
+
+  /* ===== Correção de legibilidade do cabeçalho do Mapa =====
+     O CSS global do sistema aplica estilos a todos os <header> e deixava
+     a barra do mapa clara, com texto/botões pouco legíveis. */
+  #mapPage > header.map-head{
+    position:static !important;
+    top:auto !important;
+    z-index:auto !important;
+    background:var(--map-surface) !important;
+    color:var(--map-text) !important;
+    border:1px solid var(--map-border) !important;
+    border-radius:14px !important;
+    padding:12px !important;
+    margin:0 0 14px !important;
+    backdrop-filter:none !important;
+    box-shadow:none !important;
+  }
+  #mapPage > header.map-head .map-brand{
+    color:var(--map-text) !important;
+  }
+  #mapPage > header.map-head .map-brand span{
+    color:var(--map-accent) !important;
+  }
+  #mapPage > header.map-head .map-btn{
+    background:rgba(255,255,255,.09) !important;
+    color:var(--map-text) !important;
+    border-color:var(--map-border) !important;
+    text-shadow:none !important;
+  }
+  #mapPage > header.map-head .map-btn:hover:not(:disabled){
+    background:rgba(255,255,255,.14) !important;
+    filter:none !important;
+  }
+  #mapPage > header.map-head .map-btn:disabled{
+    opacity:1 !important;
+    cursor:not-allowed !important;
+    color:#aab2c5 !important;
+    background:rgba(255,255,255,.035) !important;
+    border-color:rgba(255,255,255,.07) !important;
+  }
+  #mapPage > header.map-head .map-pill{
+    color:var(--map-ok) !important;
+    background:rgba(62,207,142,.12) !important;
+    border-color:rgba(62,207,142,.35) !important;
+  }
+
 </style>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 </head>
@@ -262,7 +412,7 @@
   import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
   import {
     getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit, updateDoc,
-    writeBatch, runTransaction, serverTimestamp, arrayUnion, arrayRemove} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    writeBatch, runTransaction, serverTimestamp, arrayUnion, arrayRemove, onSnapshot} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -288,11 +438,35 @@ const COL_POSITIONS = "positions";
   const loginScreen = document.getElementById("loginScreen");
   const userCorner = document.getElementById("userCorner");
 
+  function syncFixedHeaderOffset(){
+    const h = document.querySelector("#appShell > header");
+    const visible = appShell && getComputedStyle(appShell).display !== "none";
+    const px = (h && visible) ? Math.ceil(h.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty("--app-header-h", px + "px");
+    return px;
+  }
+  function safeFocusNoScroll(el){
+    if(!el) return;
+    try{ el.focus({ preventScroll:true }); }catch(_e){}
+  }
+  window.addEventListener("resize", syncFixedHeaderOffset, { passive:true });
+  if(window.ResizeObserver){
+    const __headerRO = new ResizeObserver(()=>syncFixedHeaderOffset());
+    const __bindHeaderRO = ()=>{
+      const h = document.querySelector("#appShell > header");
+      if(h){ try{ __headerRO.observe(h); }catch(_e){} }
+    };
+    if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", __bindHeaderRO, { once:true });
+    else __bindHeaderRO();
+  }
+
   function setGate(mode){
     const ok = (mode==="app");
     if(loginScreen) loginScreen.style.display = ok ? "none" : "flex";
     if(appShell) appShell.style.display = ok ? "block" : "none";
     if(userCorner) userCorner.style.display = ok ? "flex" : "none";
+    requestAnimationFrame(()=>syncFixedHeaderOffset());
+    setTimeout(syncFixedHeaderOffset, 80);
   }
 
   
@@ -764,6 +938,68 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     return out;
   }
 
+
+  // ===== Capacity / safety helpers =====
+  function stopMapRealtime(){
+    try{
+      if(Array.isArray(state.mapRealtimeUnsubs)){
+        state.mapRealtimeUnsubs.forEach(fn=>{ try{ if(typeof fn === "function") fn(); }catch(_e){} });
+      }
+      state.mapRealtimeUnsubs = [];
+    }catch(_e){}
+  }
+
+  async function getPositionCapacityInfo(positionId){
+    if(!positionId) return { capacity:0, code:positionId || "" };
+    try{
+      const cached = __positionByIdCache && __positionByIdCache.get(positionId);
+      const data = cached || (await loadPositionById(positionId));
+      const cap = Number(data && data.capacity);
+      return {
+        capacity: Number.isFinite(cap) && cap >= 0 ? cap : 0,
+        code: (data && data.code) ? String(data.code) : positionId,
+        zone: (data && data.zone) ? String(data.zone) : ""
+      };
+    }catch(_e){
+      return { capacity:0, code:positionId || "" };
+    }
+  }
+
+  async function currentPalletsAtPosition(positionId, excludeDocIds){
+    if(!positionId) return 0;
+    const exclude = new Set((excludeDocIds || []).filter(Boolean));
+    const snap = await getDocs(query(collection(db, COL_STOCK), where("positionId", "==", positionId)));
+    let total = 0;
+    snap.docs.forEach(d=>{
+      if(exclude.has(d.id)) return;
+      const s = d.data();
+      const p = Number(s.qtyPallets || 0);
+      const u = Number(s.qtyUnits || 0);
+      total += (p > 0 ? p : (u > 0 ? 1 : 0));
+    });
+    return total;
+  }
+
+  async function confirmCapacityBeforeAdding(positionId, incomingPallets, slotType, context, excludeDocIds){
+    const qty = Number(incomingPallets || 0);
+    if(!(qty > 0)) return true;
+    const t = String(slotType || "").toUpperCase();
+    if(t === "PICKING") return true;
+    try{
+      const info = await getPositionCapacityInfo(positionId);
+      const cap = Number(info.capacity || 0);
+      if(!(cap > 0)) return true;
+      const current = await currentPalletsAtPosition(positionId, excludeDocIds);
+      const next = current + qty;
+      if(next <= cap) return true;
+      // ⚠️ Aviso informativo — operação SEMPRE permitida mesmo excedendo a cota
+      window.__lastCapacityWarning = `⚠️ AVISO: A posição ${info.code || positionId} ficará em sobrecarga.\nCapacidade: ${cap} | Atual: ${current} | A adicionar: ${qty} | Total após: ${next}`;
+      return true; // sempre permitir — nunca bloquear
+    }catch(_e){
+      return true;
+    }
+  }
+
   // ===== Stock ops =====
   async function addStock(positionId, productId, palletBarcode, slotType, deltaUnits, deltaPallets, origin){
     const user = auth.currentUser;
@@ -798,6 +1034,12 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       }
     }
     // =========================================
+
+    if(dP > 0){
+      window.__lastCapacityWarning = null;
+      await confirmCapacityBeforeAdding(positionId, dP, slotType || "PICKING", "ARRUMAR");
+      // operação continua sempre, mesmo em sobrecarga
+    }
 
     await runTransaction(db, async (tx)=>{
       const snap = await tx.get(ref);
@@ -999,6 +1241,16 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       }
     }
 
+    if(p > 0){
+      try{
+        const fromCheck = await getDoc(fromRef);
+        const fromTypeCheck = fromCheck.exists() ? (fromCheck.data().slotType || "PICKING") : "PICKING";
+        window.__lastCapacityWarning = null;
+        await confirmCapacityBeforeAdding(toPositionId, p, fromTypeCheck, "MUDAR", [fromRef.id]);
+        // operação continua sempre, mesmo em sobrecarga
+      }catch(_capErr){ /* ignorar erros de capacidade */ }
+    }
+
     await runTransaction(db, async (tx)=>{
       const fromSnap = await tx.get(fromRef);
       const fromU = fromSnap.exists() ? Number(fromSnap.data().qtyUnits||0) : 0;
@@ -1063,6 +1315,19 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     const qy = query(collection(db, COL_STOCK), where("positionId","==", fromPositionId));
     const snap = await getDocs(qy);
     if(snap.empty) throw new Error("Origin sem stock.");
+
+    const totalMovePallets = snap.docs.reduce((acc,d)=>{
+      const s = d.data();
+      const p = Number(s.qtyPallets || 0);
+      const u = Number(s.qtyUnits || 0);
+      return acc + (p > 0 ? p : (u > 0 ? 1 : 0));
+    }, 0);
+    const hasOnlyPickingMove = snap.docs.every(d=>String((d.data().slotType || "PICKING")).toUpperCase()==="PICKING");
+    if(totalMovePallets > 0 && !hasOnlyPickingMove){
+      window.__lastCapacityWarning = null;
+      await confirmCapacityBeforeAdding(toPositionId, totalMovePallets, "COMPLETA", "MUDAR TUDO", snap.docs.map(d=>d.id));
+      // operação continua sempre, mesmo em sobrecarga
+    }
 
     // Nota: batch com leituras para somar destino (simples)
     const batch = writeBatch(db);
@@ -1157,6 +1422,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
       <button class="tabbtn ${state.tab==="operacao"?"active":""}" data-tab="operacao">Operations</button>
       <button class="tabbtn ${state.tab==="consultar"?"active":""}" data-tab="consultar">Lookup</button>
       <button class="tabbtn ${state.tab==="stock"?"active":""}" data-tab="stock">Stock</button>
+      <button class="tabbtn ${state.tab==="mapa"?"active":""}" data-tab="mapa">Mapa</button>
       <button class="tabbtn ${state.tab==="movimentos"?"active":""}" data-tab="movimentos">Movements</button>
       <button class="tabbtn ${state.tab==="paletes"?"active":""}" data-tab="paletes">Pallets</button>
     `;
@@ -1173,6 +1439,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     operacao: "Operations",
     consultar: "Lookup",
     stock: "Stock",
+    mapa: "Mapa",
     movimentos: "Movements",
     paletes: "Pallets"
   };
@@ -1181,17 +1448,27 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
 const u = auth.currentUser;
 
     if(!u){
+      document.body.classList.remove("map-tab-active", "map-modal-open");
       tabsEl.innerHTML = "";
       viewEl.innerHTML = `<div class="card"><h2 style="margin:0 0 8px">Login obrigatório</h2><div class="hint">Faz login no topo para aceder.</div></div>`;
       return;
     }
     if(!canOperate(u)){
+      document.body.classList.remove("map-tab-active", "map-modal-open");
       tabsEl.innerHTML = "";
       viewEl.innerHTML = `<div class="card"><h2 style="margin:0 0 8px">No access</h2><div class="hint">Usa email <b>@admin.com</b> ou <b>@wh.com</b>.</div></div>`;
       return;
     }
 
+    document.body.classList.toggle("map-tab-active", state.tab === "mapa");
+    if(state.tab !== "mapa"){
+      document.body.classList.remove("map-modal-open");
+      stopMapRealtime();
+    }
+
     renderTabs();
+    syncFixedHeaderOffset();
+    setTimeout(syncFixedHeaderOffset, 0);
     document.title = (TAB_TITLES[state.tab] || state.tab) + " | Warehouse";
 
     if(state.tab==="admin"){
@@ -1200,6 +1477,7 @@ const u = auth.currentUser;
     }
     if(state.tab==="consultar"){ renderLookup(); return; }
     if(state.tab==="stock"){ renderStock(); return; }
+    if(state.tab==="mapa"){ renderMapa(); return; }
     if(state.tab==="movimentos"){ renderMovements(); return; }
     if(state.tab==="paletes"){ renderPallets(); return; }
     renderOperacao();
@@ -1664,6 +1942,7 @@ $("pSearch").oninput = renderProductsTable;
             <div class="opMenuBtn" data-go="mudar"><div><div class="k">Move</div><div class="s">Mover palete inteira</div></div><div>›</div></div>
             <div class="opMenuBtn" data-go="retirar"><div><div class="k">Adjust</div><div class="s">Adicionar ou retirar qty de uma palete</div></div><div>›</div></div>
             <div class="opMenuBtn" data-go="reabastecer"><div><div class="k">Replenish</div><div class="s">Mover qty palete → palete</div></div><div>›</div></div>
+            <div class="opMenuBtn" data-go="eliminar"><div><div class="k">Delete pallet</div><div class="s">Apagar palete do stock</div></div><div>›</div></div>
           </div>
           <div id="opMsg"></div>
         </div>
@@ -1984,16 +2263,22 @@ $("pSearch").oninput = renderProductsTable;
             <div style="flex:1">
               <div class="t">Destino</div>
               <div class="row" style="margin-top:8px">
-                <div class="field">
-                  <label>PALETE DESTINO (opcional)</label>
-                  <input id="rpToPal" class="mono" placeholder="Pica palete destino (se já existe)..." disabled />
-                  <div class="hint" id="rpToPalInfo"></div>
+                <div class="row" style="gap:8px;align-items:flex-end">
+                  <div class="field" style="flex:1">
+                    <label>PALETE DESTINO (opcional)</label>
+                    <input id="rpToPal" class="mono" placeholder="Pica palete destino (se já existe)..." disabled />
+                    <div class="hint" id="rpToPalInfo"></div>
+                  </div>
+                  <button class="btn ghost" id="rpToPalOk" style="min-width:86px;height:46px;margin-top:22px" disabled>OK</button>
                 </div>
               </div>
               <div class="row" style="margin-top:8px">
-                <div class="field">
-                  <label>POSIÇÃO DESTINO (picking)</label>
-                  <input id="rpTo" class="mono" placeholder="Pica a posição destino..." disabled />
+                <div class="row" style="gap:8px;align-items:flex-end">
+                  <div class="field" style="flex:1">
+                    <label>POSIÇÃO DESTINO (picking)</label>
+                    <input id="rpTo" class="mono" placeholder="Pica a posição destino..." disabled />
+                  </div>
+                  <button class="btn ghost" id="rpToOk" style="min-width:86px;height:46px;margin-top:22px" disabled>OK</button>
                 </div>
               </div>
             </div>
@@ -2199,8 +2484,10 @@ aOk.onclick = async ()=>{
         }
         if(!(pos && prod && (qtyU>0 || qtyP>0))) throw new Error("Falta QTD (UND e/ou Pallets).");
         aOk.disabled=true; aOk.textContent="A guardar...";
+        window.__lastCapacityWarning = null;
         await addStock(pos.id, prod.id, aPal.value, aType.value, qtyU, qtyP, origin);
-        aMsg.innerHTML = msgBox(`✅ OK • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(aType.value)} • ${esc(origin)} • +${qtyU} UND • +${qtyP} Pal`, "ok");
+        const capWarn = window.__lastCapacityWarning ? `<div class="msg warn" style="margin-top:6px">⚠️ Sobrecarga: ${esc(window.__lastCapacityWarning.replace("⚠️ AVISO: ",""))}</div>` : "";
+        aMsg.innerHTML = msgBox(`✅ OK • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(aType.value)} • ${esc(origin)} • +${qtyU} UND • +${qtyP} Pal`, "ok") + capWarn;
         // manter posição/produto para repetir
         aPal.value=""; aQtyU.value=""; aQtyP.value="";
         aOk.textContent="Criar";
@@ -2392,7 +2679,14 @@ function setupRemove(){
       rQtyU.disabled=false; rQtyP.disabled=false;
       if(rModeRemove) rModeRemove.disabled=false;
       if(rModeAdd) rModeAdd.disabled=false;
-      var _rs=$("rStatus"); if(_rs) _rs.disabled=false;
+      var _rs=$("rStatus");
+      if(_rs){
+        _rs.disabled=false;
+        ensureStatusesLoaded().then(list=>{
+          const arr = (list && list.length) ? list : DEFAULT_STATUSES;
+          _rs.innerHTML = '<option value="" selected>(keep)</option>' + arr.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+        }).catch(()=>{});
+      }
       rQtyU.focus();
     }
 
@@ -2456,6 +2750,8 @@ function setupRemove(){
     }
 
     rPal.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
+    rPal.addEventListener("change", ()=>{ if(rPal.value) resolvePal(); });
+    rPal.addEventListener("blur",   ()=>{ if(rPal.value) resolvePal(); });
     const rPalOk=$("rPalOk"); if(rPalOk) rPalOk.addEventListener("click", ()=>resolvePal());
 
     rDo.onclick = async ()=>{
@@ -2467,11 +2763,14 @@ function setupRemove(){
         if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD.");
         const sign = mode==="add" ? 1 : -1;
         rDo.disabled=true; rDo.textContent="A guardar...";
+        window.__lastCapacityWarning = null;
+        const _posCode = pos.code, _prodName = prod.name, _pal = pal;
         await addStock(pos.id, prod.id, pal, (stock.slotType||"PICKING"), sign*qtyU, sign*qtyP);
         const verb = mode==="add" ? "ADICIONADO" : "RETIRADO";
         const sym = mode==="add" ? "+" : "-";
-        rMsg.innerHTML = msgBox(`✅ ${verb} • ${esc(pos.code)} • ${esc(prod.name)} • ${esc(pal)} • ${sym}${qtyU} UND • ${sym}${qtyP} Pal`, "ok");
+        const capWarn = window.__lastCapacityWarning ? `<div class="msg warn" style="margin-top:6px">⚠️ Sobrecarga: ${esc(window.__lastCapacityWarning.replace("⚠️ AVISO: ",""))}</div>` : "";
         reset();
+        rMsg.innerHTML = msgBox(`✅ ${verb} • ${esc(_posCode)} • ${esc(_prodName)} • ${esc(_pal)} • ${sym}${qtyU} UND • ${sym}${qtyP} Pal`, "ok") + capWarn;
       }catch(err){
         rDo.disabled=false; rDo.textContent="Confirmar Ajuste";
         rMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
@@ -2494,6 +2793,18 @@ function setupRemove(){
     let fromSlotType="COMPLETA";
 
     function setMsg(text, kind){ rpMsg.innerHTML = msgBox(text, kind||"ok"); }
+
+    async function populateReplenishStatuses(){
+      try{
+        const statuses = await ensureStatusesLoaded();
+        const roStatus = $("roStatus");
+        if(roStatus){
+          roStatus.innerHTML = '<option value="" selected>(keep)</option>' +
+            statuses.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+        }
+      }catch(_e){}
+    }
+    populateReplenishStatuses();
 
     function reset(){
       fromPos=toPos=prod=null;
@@ -2538,6 +2849,10 @@ function setupRemove(){
     function unlockDestino(){
       rpToPal.disabled = false;
       rpTo.disabled = false;
+      const rpToPalOk = $("rpToPalOk");
+      const rpToOk    = $("rpToOk");
+      if(rpToPalOk) rpToPalOk.disabled = false;
+      if(rpToOk)    rpToOk.disabled    = false;
       // se já veio destino via palete, rpTo pode estar disabled, mas aqui é o modo normal
       if(!rpTo.disabled) rpTo.focus();
     }
@@ -2673,15 +2988,20 @@ function setupRemove(){
       };
     }
 
-    // palete origem enter
-    rpPal.addEventListener("keydown", async (e)=>{
-      if(e.key!=="Enter") return;
-      e.preventDefault();
+    // palete origem enter / change / blur (suporte scanner)
+    async function resolveOriginPalletIfNeeded(){
       if(rpManual && rpManual.checked) return;
       const code = normalizeBarcode(rpPal.value);
       if(!code){ setMsg("Pica a palete origem.", "warn"); return; }
       await resolveOriginByPallet(code);
+    }
+    rpPal.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      await resolveOriginPalletIfNeeded();
     });
+    rpPal.addEventListener("change", async ()=>{ if(rpPal.value) await resolveOriginPalletIfNeeded(); });
+    rpPal.addEventListener("blur",   async ()=>{ if(rpPal.value) await resolveOriginPalletIfNeeded(); });
 
     // manual origin
     if(rpFrom){
@@ -2715,9 +3035,7 @@ function setupRemove(){
     }
 
     // destino palete optional
-    rpToPal.addEventListener("keydown", async (e)=>{
-      if(e.key!=="Enter") return;
-      e.preventDefault();
+    async function resolveDestinoPallet(){
       if(!prod){ setMsg("Primeiro define a origem.", "warn"); return; }
       const code = normalizeBarcode(rpToPal.value);
       if(!code){
@@ -2729,15 +3047,23 @@ function setupRemove(){
         return;
       }
       await handleDestinoPallet(code);
-    });
-
-    // destino posição
-    rpTo.addEventListener("keydown", async (e)=>{
+    }
+    rpToPal.addEventListener("keydown", async (e)=>{
       if(e.key!=="Enter") return;
       e.preventDefault();
+      await resolveDestinoPallet();
+    });
+    rpToPal.addEventListener("change", async ()=>{ if(rpToPal.value) await resolveDestinoPallet(); });
+    rpToPal.addEventListener("blur",   async ()=>{ if(rpToPal.value) await resolveDestinoPallet(); });
+    const rpToPalOk = $("rpToPalOk");
+    if(rpToPalOk) rpToPalOk.addEventListener("click", ()=>resolveDestinoPallet());
+
+    // destino posição
+    async function resolveDestinoPos(){
       if(!prod){ setMsg("Primeiro define a origem.", "warn"); return; }
       if(rpTo.disabled) return; // já definido via palete destino
       const code = normalizeBarcode(rpTo.value);
+      if(!code) return;
       const p = await getPositionByCode(code);
       if(!p){ setMsg("Destino não encontrado.", "err"); return; }
       toPos = p;
@@ -2746,7 +3072,16 @@ function setupRemove(){
       rpQtyU.focus();
       setMsg("Destino OK. Agora indica quantidades.", "ok");
       enable();
+    }
+    rpTo.addEventListener("keydown", async (e)=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      await resolveDestinoPos();
     });
+    rpTo.addEventListener("change", async ()=>{ if(rpTo.value) await resolveDestinoPos(); });
+    rpTo.addEventListener("blur",   async ()=>{ if(rpTo.value) await resolveDestinoPos(); });
+    const rpToOk = $("rpToOk");
+    if(rpToOk) rpToOk.addEventListener("click", ()=>resolveDestinoPos());
 
     // confirmar
     rpOk.onclick = async ()=>{
@@ -2892,7 +3227,7 @@ function setupRemove(){
       for(const r of rows.slice(0,12)){
         const pos = await loadPositionById(r.positionId||"");
         const prod = await loadProductById(r.productId||"");
-        lines.push(`${(pos.code||r.positionId||"-")} • ${(prod.name||prod.barcode||r.productId||"-")} • UND ${Number(r.qtyUnits||0)} • Pal ${Number(r.qtyPallets||0)} • ${r.slotType||""}`);
+        lines.push(`${(pos && pos.code ? pos.code : r.positionId||"-")} • ${(prod && (prod.name||prod.barcode) ? (prod.name||prod.barcode) : r.productId||"-")} • UND ${Number(r.qtyUnits||0)} • Pal ${Number(r.qtyPallets||0)} • ${r.slotType||""}`);
       }
       if(rows.length>12) lines.push(`… +${rows.length-12} linhas`);
       if(eInfo) eInfo.textContent = `${rows.length} linha(s) encontradas`;
@@ -2953,7 +3288,7 @@ function setupRemove(){
       if(mStatus){ mStatus.disabled = true; mStatus.innerHTML = '<option value="" selected>(keep)</option>'; }
       mMove.disabled = true;
       mMsg.innerHTML = msgBox("Pica a PALETE para carregar origem/produto.", "warn");
-      mPal.focus();
+      safeFocusNoScroll(mPal);
     }
     reset();
     if(mClear2) mClear2.onclick = reset;
@@ -2971,7 +3306,7 @@ function setupRemove(){
         mProd.value = prod.barcode || "";
         mTo.disabled = false;
         if(mToOk) mToOk.disabled = false;
-        mTo.focus();
+        safeFocusNoScroll(mTo);
         if(mStatus){
           mStatus.disabled = false;
           // carregar lista de statuses do Admin
@@ -3011,7 +3346,7 @@ function setupRemove(){
             mProd.value = prod.barcode || "";
             mTo.disabled = false;
             if(mToOk) mToOk.disabled = false;
-            mTo.focus();
+            safeFocusNoScroll(mTo);
             if(mStatus){
               mStatus.disabled = false;
               ensureStatusesLoaded().then(list=>{
@@ -3056,9 +3391,12 @@ mMove.onclick = async ()=>{
         if(mQtyP) mQtyP.value = String(p);
         const st = (mStatus && mStatus.value) ? mStatus.value : "";
         mMove.disabled=true; mMove.textContent="A mover...";
+        window.__lastCapacityWarning = null;
+        const _fromCode = fromPos.code, _toCode = toPos.code, _prodName = prod.name, _pal = pal;
         await moveStock(fromPos.id, toPos.id, prod.id, pal, u, p, st);
-        mMsg.innerHTML = msgBox(`✅ MOVIDO • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${esc(pal)}`, "ok");
-        reset();
+        const capWarn = window.__lastCapacityWarning ? `<div class="msg warn" style="margin-top:6px">⚠️ Sobrecarga: ${esc(window.__lastCapacityWarning.replace("⚠️ AVISO: ",""))}</div>` : "";
+        reset(); // reset apaga mMsg, por isso escrevemos depois
+        mMsg.innerHTML = msgBox(`✅ MOVIDO • ${esc(_fromCode)} → ${esc(_toCode)} • ${esc(_prodName)} • ${esc(_pal)}`, "ok") + capWarn;
       }catch(err){
         mMove.disabled=false; mMove.textContent="Mover";
         mMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
@@ -4633,6 +4971,1155 @@ async function load(){
 
 
 
+
+
+  // ===== Mapa Armazém (separador integrado) =====
+  function renderMapa(){
+    stopMapRealtime();
+
+    const MAP_CAP_KEY = "wh_map_capacity_v1"; // legacy/fallback local
+    const MAP_LAYOUT_DOC = "mapLayout";
+
+    function loadMapCapFallback(){
+      try{ return JSON.parse(localStorage.getItem(MAP_CAP_KEY) || "{}"); }
+      catch(e){ return {}; }
+    }
+    function saveMapCapFallback(obj){
+      try{ localStorage.setItem(MAP_CAP_KEY, JSON.stringify(obj || {})); }catch(e){}
+    }
+
+    const localCapacityFallback = loadMapCapFallback();
+    let capacity = {};
+    let corridorConfig = {};
+    let mapLayoutLoaded = false;
+    let mapLastPayload = null;
+    let mapCurrentSlots = [];
+    let mapCurrentAllSlots = [];
+    let mapCurrentProductMap = new Map();
+    let mapCurrentProblems = [];
+
+    function cleanMapCode(code, fallback){
+      const raw = String(code || fallback || "").trim();
+      return raw ? raw.toUpperCase() : "SEM-CODIGO";
+    }
+
+    function naturalCompare(a,b){
+      return String(a || "").localeCompare(String(b || ""), "pt", { numeric:true, sensitivity:"base" });
+    }
+
+    function parseMapCode(code){
+      const c = cleanMapCode(code);
+      const rowMatch = c.match(/^([A-ZÀ-Ý]+)/i);
+      const nums = c.match(/\d+/g);
+      if(!rowMatch || !nums || !nums.length) return null;
+      return {
+        row: rowMatch[1].toUpperCase(),
+        nums: nums.map(n=>parseInt(n,10)).filter(n=>Number.isFinite(n)),
+        code:c
+      };
+    }
+
+    function hydrateCapacityFromPositions(positions){
+      capacity = {};
+      (positions || []).forEach(p=>{
+        const code = cleanMapCode(p.code, p.id);
+        const remote = Number(p.capacity);
+        const local = Number(localCapacityFallback[code]);
+        if(Object.prototype.hasOwnProperty.call(p, "capacity") && Number.isFinite(remote) && remote >= 0){
+          capacity[code] = remote;
+        }else if(Number.isFinite(local) && local >= 0){
+          capacity[code] = local;
+        }else{
+          capacity[code] = 1;
+        }
+      });
+    }
+
+    function capFor(code){
+      const c = cleanMapCode(code);
+      if(Object.prototype.hasOwnProperty.call(capacity, c)){
+        const n = Number(capacity[c]);
+        return Number.isFinite(n) && n >= 0 ? n : 0;
+      }
+      return 1;
+    }
+
+    function zoneFor(slot){
+      const z = slot && slot.raw && slot.raw.zone ? String(slot.raw.zone).trim() : "";
+      return z || "Sem zona";
+    }
+
+    function corridorEveryFor(row){
+      const key = cleanMapCode(row);
+      const n = Number(corridorConfig[key]);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 8;
+    }
+
+    function productNameFor(productMap, productId){
+      const product = productMap.get(productId);
+      return product && product.name ? product.name : (productId || "?");
+    }
+
+    function productSearchText(productMap, productId){
+      const p = productMap.get(productId);
+      if(!p) return String(productId || "");
+      const bars = Array.isArray(p.barcodes) ? p.barcodes.join(" ") : (p.barcode || "");
+      return `${p.name || ""} ${p.id || productId || ""} ${bars}`;
+    }
+
+    function stockLinePalletCount(s){
+      const p = Number(s && s.qtyPallets || 0);
+      const u = Number(s && s.qtyUnits || 0);
+      return p > 0 ? p : (u > 0 ? 1 : 0);
+    }
+
+    function stockPalletCount(stocks){
+      return (stocks || []).reduce((acc,s)=>acc + stockLinePalletCount(s), 0);
+    }
+
+    function formatMapQty(n){
+      const num = Number(n || 0);
+      return Number.isFinite(num) ? num.toLocaleString("pt-PT") : "0";
+    }
+
+    function formatDate(ts){
+      try{
+        const d = ts && typeof ts.toDate === "function" ? ts.toDate() : (ts ? new Date(ts) : null);
+        if(!d || isNaN(d.getTime())) return "—";
+        return d.toLocaleString("pt-PT");
+      }catch(_e){ return "—"; }
+    }
+
+    function occupancyPercent(palletCount, cap){
+      if(!(Number(cap) > 0)) return 0;
+      return Math.round((Number(palletCount || 0) / Number(cap)) * 100);
+    }
+
+    function slotProductSummary(slot, productMap){
+      const byProduct = new Map();
+      (slot.stocks || []).forEach(s=>{
+        const productId = s.productId || "SEM-PRODUTO";
+        const productName = productNameFor(productMap, productId);
+        if(!byProduct.has(productId)){
+          byProduct.set(productId, { productId, productName, pallets:0, units:0, lines:0, palletCodes:new Set() });
+        }
+        const row = byProduct.get(productId);
+        row.pallets += stockLinePalletCount(s);
+        row.units += Number(s.qtyUnits || 0);
+        row.lines += 1;
+        const pal = normalizeBarcode(s.palletBarcode || "");
+        if(pal) row.palletCodes.add(pal);
+      });
+      return Array.from(byProduct.values()).sort((a,b)=>naturalCompare(a.productName, b.productName));
+    }
+
+    function slotStateLabel(visual){
+      if(visual.stateClass === "full") return "CHEIO";
+      if(visual.stateClass === "overflow") return "EXCESSO";
+      if(visual.stateClass === "partial") return "PARCIAL";
+      if(visual.stateClass === "empty") return "VAZIO";
+      if(visual.stateClass === "picking-over") return "PICKING EXCESSO OK";
+      if(visual.stateClass === "picking-ok") return "PICKING";
+      return "SEM CAPACIDADE";
+    }
+
+    function csvCell(v){
+      const s = String(v ?? "");
+      return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }
+
+    function mapStateKey(visual){
+      if(visual.stateClass === "empty") return "empty";
+      if(visual.stateClass === "partial") return "partial";
+      if(visual.stateClass === "full") return "full";
+      if(visual.stateClass === "overflow") return "overflow";
+      if(visual.stateClass === "picking-ok" || visual.stateClass === "picking-over") return "picking";
+      return "no-cap";
+    }
+
+    function downloadMapSummaryCSV(slots, productMap){
+      const headers = ["posicao","zona","fila","capacidade","paletes","und","ocupacao_pct","tipo","estado","produtos","alertas"];
+      const lines = ["sep=;", headers.join(";")];
+      (slots || []).slice().sort((a,b)=>naturalCompare(a.posCode,b.posCode)).forEach(slot=>{
+        const visual = slotVisual(slot, productMap, true);
+        const products = slotProductSummary(slot, productMap);
+        const totalUnits = (slot.stocks || []).reduce((acc,s)=>acc + Number(s.qtyUnits || 0), 0);
+        const productText = products.map(p=>`${p.productName} (${formatMapQty(p.pallets)} pal, ${formatMapQty(p.units)} und)`).join(" | ");
+        const row = [
+          slot.posCode,
+          zoneFor(slot),
+          slot.row || "",
+          visual.cap,
+          visual.palletCount,
+          totalUnits,
+          visual.cap > 0 ? visual.occupancy : "",
+          visual.slotType || "VAZIO",
+          slotStateLabel(visual),
+          productText,
+          (visual.alerts || []).join(" | ")
+        ];
+        lines.push(row.map(csvCell).join(";"));
+      });
+      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+      downloadText(`mapa_resumo_${stamp}.csv`, lines.join("\n"));
+    }
+
+    function downloadMapDetailCSV(slots, productMap){
+      const headers = ["posicao","zona","produto","productId","palete","tipo","status","origem","paletes","und","capacidade","estado","ocupacao_pct"];
+      const lines = ["sep=;", headers.join(";")];
+      (slots || []).slice().sort((a,b)=>naturalCompare(a.posCode,b.posCode)).forEach(slot=>{
+        const visual = slotVisual(slot, productMap, true);
+        if(!(slot.stocks || []).length){
+          lines.push([slot.posCode, zoneFor(slot), "", "", "", "", "", "", 0, 0, visual.cap, slotStateLabel(visual), visual.cap > 0 ? visual.occupancy : ""].map(csvCell).join(";"));
+          return;
+        }
+        (slot.stocks || []).forEach(s=>{
+          const row = [
+            slot.posCode,
+            zoneFor(slot),
+            productNameFor(productMap, s.productId),
+            s.productId || "",
+            normalizeBarcode(s.palletBarcode || ""),
+            String(s.slotType || "").toUpperCase(),
+            s.status || "",
+            s.origin || "",
+            stockLinePalletCount(s),
+            Number(s.qtyUnits || 0),
+            visual.cap,
+            slotStateLabel(visual),
+            visual.cap > 0 ? visual.occupancy : ""
+          ];
+          lines.push(row.map(csvCell).join(";"));
+        });
+      });
+      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+      downloadText(`mapa_detalhe_paletes_${stamp}.csv`, lines.join("\n"));
+    }
+
+    function goLookupPosition(slot){
+      const code = slot && slot.posCode ? slot.posCode : "";
+      const barcode = slot && slot.raw && slot.raw.barcode ? slot.raw.barcode : code;
+      if(!code && !barcode) return;
+      closeMapModal();
+      state.tab = "consultar";
+      render();
+      setTimeout(()=>{
+        const inp = $("csPos");
+        const btn = $("csGo");
+        if(inp){ inp.value = barcode || code; }
+        if(btn){ btn.click(); }
+      }, 0);
+    }
+
+    function openOperationForPallet(op, palletCode){
+      const pal = normalizeBarcode(palletCode || "");
+      if(!pal){ alert("Esta linha não tem código de palete para abrir a operação."); return; }
+      closeMapModal();
+      document.body.classList.remove("map-modal-open");
+      state.tab = "operacao";
+      state.op = op;
+      render();
+      requestAnimationFrame(()=>{ syncFixedHeaderOffset(); window.scrollTo({ top:0, left:0, behavior:"auto" }); });
+
+      const target = {
+        mudar: ["mPal", "mPalOk"],
+        retirar: ["rPal", "rPalOk"],
+        eliminar: ["ePal", "ePalOk"]
+      }[op];
+      if(!target) return;
+
+      const fillWhenReady = (attempt)=>{
+        const inp = $(target[0]);
+        const btn = $(target[1]);
+        if(!inp || !btn){
+          if(attempt < 12) setTimeout(()=>fillWhenReady(attempt + 1), 100);
+          else alert("Não consegui abrir a operação automaticamente. Abre Operations e pica a palete: " + pal);
+          return;
+        }
+        inp.value = pal;
+        safeFocusNoScroll(inp)
+        inp.dispatchEvent(new Event("input", {bubbles:true}));
+        inp.dispatchEvent(new Event("change", {bubbles:true}));
+        setTimeout(()=>{
+          btn.click();
+          syncFixedHeaderOffset();
+          window.scrollTo({ top:0, left:0, behavior:"auto" });
+        }, 80);
+        setTimeout(()=>{ syncFixedHeaderOffset(); window.scrollTo({ top:0, left:0, behavior:"auto" }); }, 260);
+      };
+      setTimeout(()=>fillWhenReady(0), 180);
+    }
+
+    function showMapPositionPopup(slot, productMap){
+      const modal = $("mapModal");
+      const title = $("mapModalTitle");
+      const sub = $("mapModalSub");
+      const body = $("mapModalBody");
+      if(!modal || !title || !sub || !body) return;
+
+      const stocks = slot.stocks || [];
+      const visual = slotVisual(slot, productMap, true);
+      const totalPallets = visual.palletCount;
+      const totalUnits = visual.totalUnits;
+      const products = slotProductSummary(slot, productMap);
+      const capText = visual.cap > 0 ? formatMapQty(visual.cap) : "—";
+      const occText = visual.cap > 0 ? `${visual.occupancy}%` : "—";
+      const stateText = slotStateLabel(visual);
+      const alertHtml = visual.alerts.length ? `<div class="map-alert-strip">${visual.alerts.map(a=>`<span>⚠️ ${esc(a)}</span>`).join("")}</div>` : "";
+
+      title.textContent = "Posição " + (slot.posCode || "—");
+      sub.innerHTML = `Zona: <b>${esc(zoneFor(slot))}</b> • Capacidade: <b>${capText}</b> • Paletes: <b>${formatMapQty(totalPallets)}</b> • Ocupação: <b>${occText}</b> • Unidades: <b>${formatMapQty(totalUnits)}</b> • Estado: <b>${esc(stateText)}</b>`;
+
+      const productCards = products.length ? products.map(p=>{
+        const palletCodes = Array.from(p.palletCodes);
+        const palText = palletCodes.length ? `${palletCodes.length} código(s)` : `${formatMapQty(p.pallets)} palete(s)`;
+        return `
+          <div class="map-product-card">
+            <div class="name">${esc(p.productName)}</div>
+            <div class="meta">
+              Paletes: <b>${formatMapQty(p.pallets)}</b><br>
+              Quantidade/UND: <b>${formatMapQty(p.units)}</b><br>
+              Linhas: <b>${formatMapQty(p.lines)}</b> • ${esc(palText)}
+            </div>
+          </div>`;
+      }).join("") : `<div class="map-empty-stock">Sem produtos/stock nesta posição.</div>`;
+
+      const detailRows = stocks.length ? stocks
+        .slice()
+        .sort((a,b)=>naturalCompare(productNameFor(productMap, a.productId), productNameFor(productMap, b.productId)) || naturalCompare(a.palletBarcode, b.palletBarcode))
+        .map((s,idx)=>{
+          const productName = productNameFor(productMap, s.productId);
+          const pal = normalizeBarcode(s.palletBarcode || "");
+          const slotType = String(s.slotType || "—").toUpperCase();
+          const status = String(s.status || "—");
+          return `
+            <tr>
+              <td><b>${esc(productName)}</b><div style="color:var(--map-muted);font-size:11px;margin-top:3px">${esc(s.productId || "")}</div></td>
+              <td>${esc(pal || "—")}</td>
+              <td>${esc(slotType)}</td>
+              <td>${esc(status)}</td>
+              <td><b>${formatMapQty(stockLinePalletCount(s))}</b></td>
+              <td><b>${formatMapQty(s.qtyUnits || 0)}</b></td>
+              <td>${esc(s.origin || "—")}</td>
+              <td class="map-row-actions">
+                <button class="map-mini-btn" data-map-act="mudar" data-pal="${esc(pal)}" ${pal ? "" : "disabled"}>Mover</button>
+                <button class="map-mini-btn" data-map-act="retirar" data-pal="${esc(pal)}" ${pal ? "" : "disabled"}>Ajustar</button>
+                <button class="map-mini-btn danger" data-map-act="eliminar" data-pal="${esc(pal)}" ${pal ? "" : "disabled"}>Eliminar</button>
+              </td>
+            </tr>`;
+        }).join("") : `<tr><td colspan="8" style="color:var(--map-muted)">Sem stock nesta posição.</td></tr>`;
+
+      body.innerHTML = `
+        ${alertHtml}
+        <div class="map-modal-actions">
+          <button class="map-btn primary" id="mapLookupThis">🔍 Lookup desta posição</button>
+          <button class="map-btn" id="mapRefreshHistory">↺ Atualizar histórico</button>
+        </div>
+
+        ${stocks.length ? `
+        <div style="background:rgba(255,255,255,.04);border:1px solid var(--map-border);border-radius:14px;padding:12px;margin-bottom:14px">
+          <div style="font-size:11px;color:var(--map-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">⚡ Ação rápida — escolhe uma palete:</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select id="mapQuickPalSel" style="flex:1;min-width:200px;padding:9px 10px;border-radius:10px;border:1px solid var(--map-border);background:var(--map-surface2);color:var(--map-text);outline:none;font-size:13px">
+              <option value="">— seleciona palete —</option>
+              ${stocks.filter(s=>normalizeBarcode(s.palletBarcode||"")).map(s=>{
+                const pal = normalizeBarcode(s.palletBarcode||"");
+                const pName = productNameFor(productMap, s.productId);
+                return `<option value="${esc(pal)}">${esc(pal)} • ${esc(pName)} • ${stockLinePalletCount(s)} pal</option>`;
+              }).join("")}
+            </select>
+            <button class="map-mini-btn" id="mapQuickMover" disabled>Mover</button>
+            <button class="map-mini-btn" id="mapQuickAjustar" disabled>Ajustar</button>
+            <button class="map-mini-btn danger" id="mapQuickEliminar" disabled>Eliminar</button>
+          </div>
+        </div>` : ""}
+
+        <div class="map-summary-grid">
+          <div class="map-summary-card"><div class="v">${formatMapQty(products.length)}</div><div class="k">Produtos</div></div>
+          <div class="map-summary-card"><div class="v">${formatMapQty(totalPallets)}</div><div class="k">Paletes</div></div>
+          <div class="map-summary-card"><div class="v">${formatMapQty(totalUnits)}</div><div class="k">UND</div></div>
+          <div class="map-summary-card"><div class="v">${occText}</div><div class="k">Ocupação</div></div>
+        </div>
+
+        <h4 class="map-modal-section">Resumo por produto</h4>
+        <div class="map-product-list">${productCards}</div>
+
+        <h4 class="map-modal-section">Detalhe por palete / linha de stock</h4>
+        <div class="map-detail-table-wrap">
+          <table class="map-detail-table">
+            <thead><tr><th>Produto</th><th>Palete</th><th>Tipo</th><th>Status</th><th>Paletes</th><th>UND</th><th>Origem</th><th>Ações</th></tr></thead>
+            <tbody>${detailRows}</tbody>
+          </table>
+        </div>
+
+        <h4 class="map-modal-section">Últimos movimentos desta posição</h4>
+        <div id="mapHistoryBox" class="map-history-box">A carregar histórico...</div>
+      `;
+
+      const lookupBtn = $("mapLookupThis");
+      if(lookupBtn) lookupBtn.onclick = ()=>goLookupPosition(slot);
+      const refreshHistoryBtn = $("mapRefreshHistory");
+      if(refreshHistoryBtn) refreshHistoryBtn.onclick = ()=>loadPositionHistory(slot);
+
+      // Ação rápida: select de palete + botões
+      const quickSel = $("mapQuickPalSel");
+      const quickMover = $("mapQuickMover");
+      const quickAjustar = $("mapQuickAjustar");
+      const quickEliminar = $("mapQuickEliminar");
+      if(quickSel){
+        function syncQuickBtns(){
+          const hasPal = !!quickSel.value;
+          if(quickMover) quickMover.disabled = !hasPal;
+          if(quickAjustar) quickAjustar.disabled = !hasPal;
+          if(quickEliminar) quickEliminar.disabled = !hasPal;
+        }
+        quickSel.addEventListener("change", syncQuickBtns);
+        if(quickMover) quickMover.onclick = ()=>{ if(quickSel.value) openOperationForPallet("mudar", quickSel.value); };
+        if(quickAjustar) quickAjustar.onclick = ()=>{ if(quickSel.value) openOperationForPallet("retirar", quickSel.value); };
+        if(quickEliminar) quickEliminar.onclick = ()=>{ if(quickSel.value) openOperationForPallet("eliminar", quickSel.value); };
+      }
+
+      body.querySelectorAll("button[data-map-act]").forEach(btn=>{
+        btn.onclick = ()=>openOperationForPallet(btn.getAttribute("data-map-act"), btn.getAttribute("data-pal"));
+      });
+
+      openMapModal();
+      loadPositionHistory(slot);
+    }
+
+    async function loadPositionHistory(slot){
+      const box = $("mapHistoryBox");
+      const refreshBtn = $("mapRefreshHistory");
+      if(!box || !slot) return;
+      const oldBtnText = refreshBtn ? refreshBtn.textContent : "";
+      if(refreshBtn){ refreshBtn.disabled = true; refreshBtn.textContent = "A atualizar..."; }
+      box.innerHTML = `<div class="map-empty-note">A carregar histórico...</div>`;
+
+      function moveTime(m){
+        try{ return m.ts && typeof m.ts.toDate === "function" ? m.ts.toDate().getTime() : (m.ts ? new Date(m.ts).getTime() : 0); }
+        catch(_e){ return 0; }
+      }
+      function positionMatchesMovement(m){
+        const keys = [slot.posId, slot.posCode, slot.raw && slot.raw.code, slot.raw && slot.raw.barcode]
+          .map(x=>String(x || "").trim()).filter(Boolean);
+        const fields = [
+          m.positionId, m.fromPositionId, m.toPositionId,
+          m.positionCode, m.fromPositionCode, m.toPositionCode,
+          m.locationCode, m.fromLocationCode, m.toLocationCode
+        ].map(x=>String(x || "").trim()).filter(Boolean);
+        return keys.some(k=>fields.includes(k));
+      }
+      function posLabel(idOrCode){
+        const key = String(idOrCode || "").trim();
+        if(!key) return "—";
+        const found = (mapCurrentAllSlots || []).find(p=>p.posId === key || p.posCode === key || String(p.raw && p.raw.barcode || "") === key);
+        return found ? found.posCode : key;
+      }
+
+      try{
+        let result = [];
+        let sourceMode = "recentes";
+        try{
+          const qy = query(collection(db, COL_MOVEMENTS), orderBy("ts", "desc"), limit(350));
+          const snap = await getDocs(qy);
+          result = snap.docs.map(d=>({ id:d.id, ...d.data() })).filter(positionMatchesMovement);
+        }catch(_recentErr){
+          sourceMode = "por campo";
+          const fields = ["positionId", "fromPositionId", "toPositionId"];
+          const keys = [slot.posId, slot.posCode].map(x=>String(x || "").trim()).filter(Boolean);
+          for(const field of fields){
+            for(const key of keys){
+              try{
+                const qy = query(collection(db, COL_MOVEMENTS), where(field, "==", key), limit(50));
+                const snap = await getDocs(qy);
+                snap.docs.forEach(d=>result.push({ id:d.id, ...d.data(), _match:field }));
+              }catch(_e){}
+            }
+          }
+        }
+
+        const seen = new Set();
+        const rows = result.filter(r=>{
+          if(seen.has(r.id)) return false;
+          seen.add(r.id);
+          return true;
+        }).sort((a,b)=>moveTime(b) - moveTime(a)).slice(0,40);
+
+        if(!rows.length){
+          box.innerHTML = `<div class="map-empty-note">Sem movimentos encontrados para esta posição. Tentei procurar por <b>${esc(slot.posCode)}</b> e pelo ID da posição.</div>`;
+          return;
+        }
+        box.innerHTML = `
+          <div class="map-empty-note" style="margin-bottom:8px">Histórico atualizado: ${rows.length} movimento(s) encontrado(s) (${esc(sourceMode)}).</div>
+          <div class="map-detail-table-wrap">
+            <table class="map-detail-table">
+              <thead><tr><th>Data</th><th>Tipo</th><th>Utilizador</th><th>Palete</th><th>Produto</th><th>Origem</th><th>Destino</th><th>Qtd</th></tr></thead>
+              <tbody>${rows.map(m=>`<tr>
+                <td>${esc(formatDate(m.ts))}</td>
+                <td><b>${esc(m.type || "—")}</b></td>
+                <td>${esc(displayUser(m) || "—")}</td>
+                <td>${esc(m.palletBarcode || m.destPalletBarcode || "—")}</td>
+                <td>${esc(productNameFor(mapCurrentProductMap, m.productId) || m.productId || "—")}</td>
+                <td>${esc(posLabel(m.fromPositionId || m.positionId || m.fromPositionCode || m.positionCode || ""))}</td>
+                <td>${esc(posLabel(m.toPositionId || m.toPositionCode || ""))}</td>
+                <td>${formatMapQty(m.qtyPallets || 0)} pal / ${formatMapQty(m.qtyUnits || 0)} und</td>
+              </tr>`).join("")}</tbody>
+            </table>
+          </div>`;
+      }catch(err){
+        box.innerHTML = `<div class="map-empty-note">Erro ao carregar histórico: ${esc(err && err.message ? err.message : err)}</div>`;
+      }finally{
+        if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.textContent = oldBtnText || "Atualizar histórico"; }
+      }
+    }
+
+    function bindMapSlotClicks(allPositions, productMap){
+      const byId = new Map((allPositions || []).map(p=>[String(p.posId || ""), p]));
+      viewEl.querySelectorAll("#mapPage .slot[data-map-pos-id]").forEach(el=>{
+        el.onclick = (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          const slot = byId.get(String(el.getAttribute("data-map-pos-id") || ""));
+          if(slot) showMapPositionPopup(slot, productMap);
+        };
+      });
+    }
+
+    function detectProblems(allPositions, stockItems, productMap){
+      const posIds = new Set((allPositions || []).map(p=>p.posId));
+      const byPallet = new Map();
+      const problems = [];
+      (stockItems || []).forEach(s=>{
+        if(s.palletBarcode){
+          const p = normalizeBarcode(s.palletBarcode);
+          if(!byPallet.has(p)) byPallet.set(p, []);
+          byPallet.get(p).push(s);
+        }
+        if(s.positionId && !posIds.has(s.positionId)) problems.push({level:"danger", text:`Stock com posição inexistente: ${s.positionId}`, posId:s.positionId});
+        if(s.productId && !productMap.has(s.productId)) problems.push({level:"warn", text:`Stock com produto não encontrado: ${s.productId}`, posId:s.positionId});
+        if(Number(s.qtyUnits || 0) < 0 || Number(s.qtyPallets || 0) < 0) problems.push({level:"danger", text:`Quantidade negativa em ${s.positionId || "?"} / ${s.palletBarcode || "?"}`, posId:s.positionId});
+      });
+      byPallet.forEach((rows,pal)=>{
+        const keys = new Set(rows.map(r=>`${r.positionId || ""}__${r.productId || ""}`));
+        if(rows.length > 1 && keys.size > 1) problems.push({level:"danger", text:`Palete duplicada em stock: ${pal} (${rows.length} linhas)`, pallet:pal});
+      });
+      (allPositions || []).forEach(slot=>{
+        const visual = slotVisual(slot, productMap, true);
+        if(visual.cap <= 0) problems.push({level:"warn", text:`Posição sem capacidade definida: ${slot.posCode}`, posId:slot.posId});
+        if(visual.stateClass === "overflow") problems.push({level:"danger", text:`Posição acima da capacidade: ${slot.posCode} (${visual.palletCount}/${visual.cap})`, posId:slot.posId});
+      });
+      return problems;
+    }
+
+    function renderProblemPanel(problems){
+      const box = $("mapProblemList");
+      const count = $("mapProblemCount");
+      if(count) count.textContent = String((problems || []).length);
+      if(!box) return;
+      if(!(problems || []).length){
+        box.innerHTML = `<div class="map-empty-note">Sem alertas detetados no mapa.</div>`;
+        return;
+      }
+      box.innerHTML = problems.slice(0,80).map(p=>`<div class="map-problem ${p.level === "danger" ? "danger" : "warn"}"><b>${p.level === "danger" ? "Crítico" : "Aviso"}</b><span>${esc(p.text)}</span></div>`).join("");
+    }
+
+    function slotVisual(slot, productMap, metaOnly){
+      const cap = capFor(slot.posCode);
+      const stocks = slot.stocks || [];
+      const hasCompleta = stocks.some(s=>String(s.slotType || "").toUpperCase() === "COMPLETA");
+      const slotType = stocks.length === 0 ? null : (hasCompleta ? "COMPLETA" : "PICKING");
+      const palletCount = stockPalletCount(stocks);
+      const totalUnits = stocks.reduce((acc,s)=>acc + Number(s.qtyUnits || 0), 0);
+      const occupancy = occupancyPercent(palletCount, cap);
+      const barWidth = Math.max(0, Math.min(100, occupancy));
+      const productCount = slotProductSummary(slot, productMap).length;
+      const alerts = [];
+
+      let stateClass = "";
+      let typeLabel = "";
+      if(slotType === null){
+        stateClass = cap > 0 ? "empty" : "no-cap";
+        if(cap <= 0) alerts.push("Sem capacidade configurada");
+      }else if(slotType === "COMPLETA"){
+        if(cap <= 0){ stateClass = "partial"; alerts.push("Sem capacidade configurada"); }
+        else if(palletCount < cap) stateClass = "partial";
+        else if(palletCount === cap) stateClass = "full";
+        else { stateClass = "overflow"; alerts.push("Acima da capacidade"); }
+        typeLabel = `<span class="slot-type type-badge-completa">COMP</span>`;
+      }else{
+        stateClass = (palletCount > cap && cap > 0) ? "picking-over" : "picking-ok";
+        if(cap <= 0) alerts.push("Sem capacidade configurada");
+        typeLabel = `<span class="slot-type type-badge-picking">PICK</span>`;
+      }
+      if(stocks.some(s=>Number(s.qtyUnits || 0) < 0 || Number(s.qtyPallets || 0) < 0)) alerts.push("Quantidade negativa");
+      if(stocks.some(s=>s.productId && !productMap.has(s.productId))) alerts.push("Produto não encontrado");
+
+      let statusStr = "";
+      if(stateClass === "full") statusStr = `<span class="tt-ok">CHEIO</span>`;
+      else if(stateClass === "overflow") statusStr = `<span class="tt-danger">EXCESSO</span>`;
+      else if(stateClass === "partial") statusStr = `<span class="tt-warn">PARCIAL</span>`;
+      else if(stateClass === "empty") statusStr = `<span style="color:var(--map-muted)">VAZIO</span>`;
+      else if(stateClass === "picking-over") statusStr = `<span class="tt-pick">PICKING EXCESSO (OK)</span>`;
+      else if(stateClass === "picking-ok") statusStr = `<span class="tt-pick">PICKING</span>`;
+      else statusStr = `<span style="color:var(--map-muted)">SEM CAP.</span>`;
+
+      const prodList = stocks.slice(0,8).map(s=>{
+        const pName = productNameFor(productMap, s.productId);
+        const shownPal = stockLinePalletCount(s);
+        const und = Number(s.qtyUnits || 0);
+        return `• ${esc(pName)} (${shownPal} pal, ${und} und)`;
+      }).join("<br>");
+      const moreTxt = stocks.length > 8 ? `<br>+ ${stocks.length - 8} linha(s)` : "";
+
+      const capStr = cap > 0 ? formatMapQty(cap) : "—";
+      const occStr = cap > 0 ? `${occupancy}%` : "—";
+      const alertBadge = alerts.length ? `<div class="map-alert-badge">⚠️</div>` : "";
+      const zoneBadge = `<div class="map-zone-badge">${esc(zoneFor(slot))}</div>`;
+      const tooltip = `
+        <div class="tooltip">
+          <div class="tt-row"><strong>${esc(slot.posCode)}</strong>${statusStr}</div>
+          <div class="tt-row"><span style="color:var(--map-muted)">Zona:</span><span>${esc(zoneFor(slot))}</span></div>
+          <div class="tt-row"><span style="color:var(--map-muted)">Paletes:</span><span>${formatMapQty(palletCount)} / ${capStr}</span></div>
+          <div class="tt-row"><span style="color:var(--map-muted)">Ocupação:</span><span>${occStr}</span></div>
+          <div class="tt-row"><span style="color:var(--map-muted)">Produtos:</span><span>${formatMapQty(productCount)}</span></div>
+          <div class="tt-row"><span style="color:var(--map-muted)">UND:</span><span>${formatMapQty(totalUnits)}</span></div>
+          ${alerts.length ? `<div style="margin-top:7px;color:var(--map-danger);font-size:11px">${alerts.map(esc).join("<br>")}</div>` : ""}
+          ${stocks.length ? `<div style="margin-top:7px;color:var(--map-muted);font-size:11px">${prodList}${moreTxt}</div>` : `<div style="margin-top:7px;color:var(--map-muted);font-size:11px">Sem stock</div>`}
+        </div>`;
+
+      const result = { cap, palletCount, slotType, stateClass, occupancy, totalUnits, alerts };
+      if(metaOnly) return result;
+      result.html = `
+          <div class="slot ${stateClass}" style="flex:1" data-map-pos-id="${esc(slot.posId || "")}" data-map-pos-code="${esc(slot.posCode || "")}" title="Clique para ver detalhe da posição">
+            ${alertBadge}
+            ${zoneBadge}
+            <div class="slot-id">${esc(slot.posCode)}</div>
+            <div class="slot-count">${formatMapQty(palletCount)}</div>
+            <div class="slot-cap">/ ${capStr} • ${occStr}</div>
+            <div class="map-progress" aria-hidden="true"><div class="map-progress-fill" style="width:${barWidth}%"></div></div>
+            ${typeLabel}
+            ${tooltip}
+          </div>`;
+      return result;
+    }
+
+    viewEl.innerHTML = `
+      <div id="mapPage">
+        <style>
+          #mapPage .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;align-items:start}
+          #mapPage .map-main-panel,#mapPage .map-side-panel,#mapPage .map-problems-panel{background:var(--map-surface);border:1px solid var(--map-border);border-radius:14px;padding:12px}
+          #mapPage .map-section-title{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 10px}
+          #mapPage .map-section-title h3{font-size:14px;margin:0;color:var(--map-accent);font-weight:900}
+          #mapPage .map-section-title span{font-size:11px;color:var(--map-muted)}
+          #mapPage .map-extra-grid{display:grid;grid-template-columns:1fr;gap:8px;max-height:640px;overflow:auto;padding-right:2px}
+          #mapPage .map-extra-grid .slot{min-height:94px;flex:none}
+          #mapPage .map-empty-note{font-size:12px;color:var(--map-muted);line-height:1.45;padding:10px;border:1px dashed var(--map-border);border-radius:12px;background:rgba(255,255,255,.03)}
+          #mapPage .map-row-code-count{color:var(--map-muted);font-size:11px;margin-left:8px;font-weight:600}
+          #mapPage .map-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:12px;background:var(--map-surface);border:1px solid var(--map-border);border-radius:14px}
+          #mapPage .map-search,#mapPage .map-filter{min-width:170px;flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--map-border);background:var(--map-surface2);color:var(--map-text);outline:none}
+          #mapPage .map-filter{flex:0 0 160px;min-width:145px}
+          #mapPage .map-search:focus,#mapPage .map-filter:focus{border-color:var(--map-accent)}
+          #mapPage .map-progress{width:82%;height:6px;border-radius:999px;background:rgba(255,255,255,.10);overflow:hidden;margin:2px 0 1px}
+          #mapPage .map-progress-fill{height:100%;border-radius:999px;background:currentColor;opacity:.95}
+          #mapPage .slot.full .map-progress-fill{background:var(--map-ok)}
+          #mapPage .slot.partial .map-progress-fill{background:var(--map-warn)}
+          #mapPage .slot.overflow .map-progress-fill{background:var(--map-danger)}
+          #mapPage .slot.picking-ok .map-progress-fill,#mapPage .slot.picking-over .map-progress-fill{background:var(--map-picking)}
+          #mapPage .map-alert-badge{position:absolute;top:6px;right:6px;font-size:14px;line-height:1;background:rgba(255,94,94,.15);border:1px solid rgba(255,94,94,.28);border-radius:999px;padding:3px}
+          #mapPage .map-zone-badge{position:absolute;left:6px;top:6px;font-size:9px;max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--map-muted);background:rgba(255,255,255,.06);border:1px solid var(--map-border);border-radius:999px;padding:2px 6px}
+          #mapPage .map-corridor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px;margin-top:12px}
+          #mapPage .map-corridor-cell{background:rgba(255,255,255,.035);border:1px solid var(--map-border);border-radius:10px;padding:10px}
+          #mapPage .map-corridor-cell label{display:block;font-size:11px;color:var(--map-muted);margin-bottom:6px;text-transform:uppercase}
+          #mapPage .map-corridor-cell input,#mapPage .map-cfg-cell input,#mapPage .map-cfg-cell select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--map-border);background:var(--map-bg);color:var(--map-text);outline:none}
+          #mapPage .map-cfg-cell select{margin-top:6px;text-align:left}
+          #mapPage .map-problems-panel{margin-bottom:14px}
+          #mapPage .map-problem-list{display:grid;gap:7px;max-height:180px;overflow:auto}
+          #mapPage .map-problem{display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.35;border-radius:10px;padding:8px 10px;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.22)}
+          #mapPage .map-problem.danger{background:rgba(255,94,94,.09);border-color:rgba(255,94,94,.25)}
+          #mapPage .map-problem b{min-width:54px;color:var(--map-accent)}
+          #mapPage .map-problem.danger b{color:var(--map-danger)}
+          #mapPage .map-modal{position:fixed;top:var(--app-header-h,0px);right:0;bottom:0;left:0;background:rgba(0,0,0,.68);display:none;align-items:flex-start;justify-content:center;padding:14px 20px 20px;overflow:hidden;z-index:9000}
+          #mapPage .map-modal-card{width:min(1040px,100%);max-height:calc(100dvh - var(--app-header-h,0px) - 34px);margin:0 0 auto;overflow:hidden;display:flex;flex-direction:column;background:var(--map-surface);border:1px solid var(--map-border);border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.55)}
+          #mapPage .map-modal-head{flex:0 0 auto;background:rgba(22,24,28,.98);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid var(--map-border);z-index:2}
+          #mapPage .map-modal-title{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;font-size:18px;font-weight:900;margin:0;color:var(--map-text)}
+          #mapPage .map-modal-sub{font-size:12px;color:var(--map-muted);margin-top:4px;line-height:1.4}
+          #mapPage .map-modal-close{border:1px solid var(--map-border);background:rgba(255,255,255,.08);color:var(--map-text);border-radius:12px;min-width:42px;height:42px;font-size:22px;line-height:1;cursor:pointer}
+          #mapPage .map-modal-body{padding:16px;overflow:auto;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch}
+          #mapPage .map-modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+          #mapPage .map-summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px;margin-bottom:14px}
+          #mapPage .map-summary-card{background:var(--map-surface2);border:1px solid var(--map-border);border-radius:14px;padding:12px}
+          #mapPage .map-summary-card .v{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;font-size:24px;font-weight:900;color:var(--map-accent)}
+          #mapPage .map-summary-card .k{font-size:11px;color:var(--map-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+          #mapPage .map-modal-section{font-size:13px;margin:16px 0 8px;color:var(--map-accent);text-transform:uppercase;letter-spacing:.4px}
+          #mapPage .map-product-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:10px 0 16px}
+          #mapPage .map-product-card{background:rgba(255,255,255,.04);border:1px solid var(--map-border);border-radius:14px;padding:12px}
+          #mapPage .map-product-card .name{font-weight:900;font-size:13px;color:var(--map-text);margin-bottom:6px;word-break:break-word}
+          #mapPage .map-product-card .meta{font-size:12px;color:var(--map-muted);line-height:1.55}
+          #mapPage .map-detail-table-wrap{overflow:auto;border:1px solid var(--map-border);border-radius:14px;background:rgba(255,255,255,.03)}
+          #mapPage .map-detail-table{width:100%;border-collapse:collapse;font-size:12px;color:var(--map-text)}
+          #mapPage .map-detail-table th,#mapPage .map-detail-table td{border-bottom:1px solid var(--map-border);padding:9px 10px;text-align:left;vertical-align:top}
+          #mapPage .map-detail-table th{color:var(--map-muted);font-size:11px;text-transform:uppercase;letter-spacing:.35px;background:rgba(255,255,255,.04)}
+          #mapPage .map-row-actions{white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap}
+          #mapPage .map-mini-btn{border:1px solid var(--map-border);background:rgba(255,255,255,.07);color:var(--map-text);border-radius:8px;padding:6px 8px;font-size:11px;cursor:pointer}
+          #mapPage .map-mini-btn.danger{color:var(--map-danger);border-color:rgba(255,94,94,.25);background:rgba(255,94,94,.10)}
+          #mapPage .map-mini-btn:disabled{opacity:.4;cursor:not-allowed}
+          #mapPage .map-alert-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+          #mapPage .map-alert-strip span{background:rgba(255,94,94,.1);border:1px solid rgba(255,94,94,.25);color:#ffd1d1;padding:7px 9px;border-radius:999px;font-size:12px}
+          #mapPage .map-inline-msg{font-size:12px;color:var(--map-muted);margin-left:8px}
+          @media(max-width:900px){#mapPage .map-layout{grid-template-columns:1fr}#mapPage .map-side-panel{order:2}#mapPage .map-filter{flex:1}.map-row-actions{white-space:normal}}
+          @media(max-width:820px){#mapPage .map-modal{padding:10px;top:var(--app-header-h,0px)}#mapPage .map-modal-card{max-height:calc(100dvh - var(--app-header-h,0px) - 20px);border-radius:16px}#mapPage .map-modal-head{padding:12px}#mapPage .map-modal-body{padding:12px}}
+        </style>
+
+        <header class="map-head">
+          <div class="map-brand">WH <span>MAPA</span></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span id="mapStatus" class="map-pill">—</span>
+            <button class="map-btn" id="mapReload">↺ Recarregar</button>
+            <button class="map-btn" id="mapToggleCfg">⚙ Configuração</button>
+            <button class="map-btn" id="mapExportSummaryCsv">Exportar resumo CSV</button>
+            <button class="map-btn" id="mapExportDetailCsv">Exportar detalhe CSV</button>
+            <span id="mapExportFilterHint" style="font-size:11px;color:var(--map-muted);display:none">● filtrado</span>
+          </div>
+        </header>
+
+        <div class="map-controls">
+          <input id="mapSearch" class="map-search" placeholder="Pesquisar posição, produto, palete, status, origem ou zona...">
+          <select id="mapStateFilter" class="map-filter">
+            <option value="">Todos os estados</option><option value="empty">Vazias</option><option value="partial">Parciais</option><option value="full">Cheias</option><option value="overflow">Excesso</option><option value="picking">Picking</option><option value="no-cap">Sem capacidade</option>
+          </select>
+          <select id="mapTypeFilter" class="map-filter">
+            <option value="">Todos os tipos</option><option value="COMPLETA">COMPLETA</option><option value="PICKING">PICKING</option><option value="VAZIO">Vazio</option>
+          </select>
+          <select id="mapZoneFilter" class="map-filter"><option value="">Todas as zonas</option></select>
+          <span id="mapFilterHint" class="map-pill">Sem filtro</span>
+        </div>
+
+        <div class="map-config" id="mapCfgPanel">
+          <h3>⚙ Configuração do mapa</h3>
+          <p>Capacidade e zona ficam guardadas na coleção <b>positions</b>. Corredores por fila ficam guardados em <b>config/mapLayout</b>.</p>
+          <div class="map-cfg-grid" id="mapCfgGrid"></div>
+          <div class="map-corridor-grid" id="mapCorridorGrid"></div>
+          <div style="display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap">
+            <button class="map-btn primary" id="mapSaveCfg">💾 Guardar configuração</button>
+            <button class="map-btn" id="mapSetAll">Aplicar capacidade a todas</button>
+            <input id="mapAllVal" type="number" min="0" max="99" value="1" style="width:80px">
+            <span id="mapCfgHint" style="font-size:12px;color:var(--map-muted)">Firestore + fallback local.</span>
+          </div>
+        </div>
+
+        <div class="map-stats" id="mapStats"></div>
+
+        <div class="map-problems-panel">
+          <div class="map-section-title"><h3>Alertas / erros detetados</h3><span id="mapProblemCount">0</span></div>
+          <div id="mapProblemList" class="map-problem-list"></div>
+        </div>
+
+        <div class="map-legend">
+          <span style="font-size:11px;color:var(--map-muted);text-transform:uppercase;letter-spacing:.5px">Legenda:</span>
+          <div class="map-leg-item"><div class="map-leg-dot" style="background:var(--map-empty);border:1px solid rgba(255,255,255,.1)"></div> Vazio</div>
+          <div class="map-leg-item"><div class="map-leg-dot" style="background:rgba(240,192,64,.2);border:1px solid rgba(240,192,64,.4)"></div> Parcial</div>
+          <div class="map-leg-item"><div class="map-leg-dot" style="background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.4)"></div> Cheio</div>
+          <div class="map-leg-item"><div class="map-leg-dot" style="background:rgba(255,94,94,.15);border:1px solid rgba(255,94,94,.4)"></div> Excesso</div>
+          <div class="map-leg-item"><div class="map-leg-dot" style="background:rgba(123,156,255,.12);border:1px solid rgba(123,156,255,.4)"></div> Picking</div>
+          <div class="map-leg-item"><div class="map-leg-dot" style="background:rgba(255,94,94,.10);border:1px solid rgba(255,94,94,.35)"></div> ⚠️ Alerta</div>
+        </div>
+
+        <div class="map-layout">
+          <div class="map-main-panel">
+            <div class="map-section-title"><h3>Posições por fila</h3><span>Geradas automaticamente pelos códigos registados</span></div>
+            <div class="map-wrap">
+              <div id="mapLoad" class="map-load">A carregar dados...</div>
+              <div id="mapGrid" class="wh-map" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="map-side-panel">
+            <div class="map-section-title"><h3>Outras posições registadas</h3><span id="mapExtraCount">0</span></div>
+            <div id="mapExtra" class="map-extra-grid"></div>
+          </div>
+        </div>
+
+        <div id="mapModal" class="map-modal" aria-hidden="true">
+          <div class="map-modal-card" role="dialog" aria-modal="true" aria-labelledby="mapModalTitle">
+            <div class="map-modal-head">
+              <div>
+                <h3 id="mapModalTitle" class="map-modal-title">Posição</h3>
+                <div id="mapModalSub" class="map-modal-sub"></div>
+              </div>
+              <button id="mapModalClose" class="map-modal-close" type="button" aria-label="Fechar">×</button>
+            </div>
+            <div id="mapModalBody" class="map-modal-body"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const statusEl = $("mapStatus");
+    const loadEl = $("mapLoad");
+    const gridEl = $("mapGrid");
+    const cfgPanel = $("mapCfgPanel");
+    const cfgGrid = $("mapCfgGrid");
+    const corridorGrid = $("mapCorridorGrid");
+    const extraEl = $("mapExtra");
+    const extraCountEl = $("mapExtraCount");
+    const modalEl = $("mapModal");
+    const modalCloseEl = $("mapModalClose");
+
+    function syncAppHeaderOffset(){
+      const h = document.querySelector("#appShell > header");
+      const px = h ? Math.ceil(h.getBoundingClientRect().height) : 0;
+      document.documentElement.style.setProperty("--app-header-h", px + "px");
+      return px;
+    }
+    syncAppHeaderOffset();
+    if(!state.mapHeaderOffsetBound){
+      state.mapHeaderOffsetBound = true;
+      window.addEventListener("resize", syncAppHeaderOffset, { passive:true });
+    }
+
+    const searchEl = $("mapSearch");
+    const stateFilterEl = $("mapStateFilter");
+    const typeFilterEl = $("mapTypeFilter");
+    const zoneFilterEl = $("mapZoneFilter");
+    const filterHintEl = $("mapFilterHint");
+    const cfgHintEl = $("mapCfgHint");
+
+    function openMapModal(){
+      if(!modalEl) return;
+      syncAppHeaderOffset();
+      modalEl.style.display = "flex";
+      modalEl.setAttribute("aria-hidden", "false");
+      document.body.classList.add("map-modal-open");
+    }
+
+    function closeMapModal(){
+      if(modalEl){
+        modalEl.style.display = "none";
+        modalEl.setAttribute("aria-hidden", "true");
+      }
+      document.body.classList.remove("map-modal-open");
+    }
+
+    if(modalCloseEl) modalCloseEl.onclick = closeMapModal;
+    if(modalEl) modalEl.addEventListener("click", (ev)=>{ if(ev.target === modalEl) closeMapModal(); });
+    document.addEventListener("keydown", (ev)=>{ if(ev.key === "Escape" && modalEl && modalEl.style.display === "flex") closeMapModal(); }, { once:false });
+
+    $("mapToggleCfg").onclick = ()=>{
+      cfgPanel.style.display = cfgPanel.style.display === "none" || !cfgPanel.style.display ? "block" : "none";
+    };
+    $("mapReload").onclick = ()=>loadAndRenderMap();
+    $("mapExportSummaryCsv").onclick = ()=>{
+      const slots = mapCurrentSlots && mapCurrentSlots.length ? mapCurrentSlots : mapCurrentAllSlots;
+      const isFiltered = slots.length < mapCurrentAllSlots.length;
+      const label = isFiltered ? `(${slots.length}/${mapCurrentAllSlots.length} filtradas)` : `(${slots.length} total)`;
+      const btn = $("mapExportSummaryCsv");
+      const orig = btn ? btn.textContent : "";
+      if(btn){ btn.textContent = `A exportar ${label}...`; btn.disabled = true; }
+      try{ downloadMapSummaryCSV(slots, mapCurrentProductMap); }finally{ if(btn){ btn.textContent = orig; btn.disabled = false; } }
+    };
+    $("mapExportDetailCsv").onclick = ()=>{
+      const slots = mapCurrentSlots && mapCurrentSlots.length ? mapCurrentSlots : mapCurrentAllSlots;
+      const isFiltered = slots.length < mapCurrentAllSlots.length;
+      const label = isFiltered ? `(${slots.length}/${mapCurrentAllSlots.length} filtradas)` : `(${slots.length} total)`;
+      const btn = $("mapExportDetailCsv");
+      const orig = btn ? btn.textContent : "";
+      if(btn){ btn.textContent = `A exportar ${label}...`; btn.disabled = true; }
+      try{ downloadMapDetailCSV(slots, mapCurrentProductMap); }finally{ if(btn){ btn.textContent = orig; btn.disabled = false; } }
+    };
+    [searchEl,stateFilterEl,typeFilterEl,zoneFilterEl].forEach(el=>{
+      if(el) el.addEventListener("input", ()=>{
+        if(mapLastPayload) renderMapData(mapLastPayload.positions, mapLastPayload.stockItems, mapLastPayload.productMap);
+      });
+      if(el) el.addEventListener("change", ()=>{
+        if(mapLastPayload) renderMapData(mapLastPayload.positions, mapLastPayload.stockItems, mapLastPayload.productMap);
+      });
+    });
+
+    async function loadLayoutConfig(){
+      try{
+        const snap = await getDoc(doc(db, COL_CONFIG, MAP_LAYOUT_DOC));
+        if(snap.exists()){
+          const data = snap.data() || {};
+          corridorConfig = data.rowCorridors || data.corridors || {};
+        }
+      }catch(_e){ corridorConfig = corridorConfig || {}; }
+      mapLayoutLoaded = true;
+    }
+
+    async function loadAndRenderMap(){
+      if(statusEl) statusEl.textContent = "A carregar…";
+      if(loadEl){ loadEl.style.display = "block"; loadEl.textContent = "A carregar posições e stock..."; }
+      if(gridEl) gridEl.style.display = "none";
+      if(extraEl) extraEl.innerHTML = `<div class="map-empty-note">A carregar restantes posições...</div>`;
+
+      try{
+        await loadLayoutConfig();
+        const [posSnap, stockSnap, prodSnap] = await Promise.all([
+          getDocs(collection(db, COL_POSITIONS)),
+          getDocs(collection(db, COL_STOCK)),
+          getDocs(collection(db, COL_PRODUCTS))
+        ]);
+        applyMapSnapshots(posSnap, stockSnap, prodSnap, "manual");
+      }catch(err){
+        showMapLoadError(err);
+      }
+    }
+
+    function showMapLoadError(err){
+      if(statusEl){ statusEl.textContent = "Erro"; statusEl.className = "map-pill err"; }
+      if(loadEl){ loadEl.style.display = "block"; loadEl.textContent = "Erro: " + (err && err.message ? err.message : err); }
+    }
+
+    function applyMapSnapshots(posSnap, stockSnap, prodSnap, mode){
+      const positions = posSnap.docs.map(d=>({ id:d.id, ...d.data() }));
+      const stockItems = stockSnap.docs.map(d=>({ id:d.id, ...d.data() }));
+      const products = prodSnap.docs.map(d=>({ id:d.id, ...d.data() }));
+      const productMap = new Map(products.map(p=>[p.id, p]));
+      hydrateCapacityFromPositions(positions);
+      mapLastPayload = { positions, stockItems, productMap };
+      if(statusEl){
+        statusEl.innerHTML = `${mode === "live" ? "Live" : "OK"} • ${positions.length} posições • ${stockItems.length} linhas stock`;
+        statusEl.className = "map-pill ok";
+      }
+      if(loadEl) loadEl.style.display = "none";
+      if(gridEl) gridEl.style.display = "inline-flex";
+      renderMapData(positions, stockItems, productMap);
+    }
+
+    function startRealtimeMap(){
+      let posSnap=null, stockSnap=null, prodSnap=null;
+      const maybeRender = ()=>{
+        if(posSnap && stockSnap && prodSnap && mapLayoutLoaded) applyMapSnapshots(posSnap, stockSnap, prodSnap, "live");
+      };
+      const onErr = err=>showMapLoadError(err);
+      const unsubs = [];
+      unsubs.push(onSnapshot(doc(db, COL_CONFIG, MAP_LAYOUT_DOC), snap=>{
+        const data = snap.exists() ? (snap.data() || {}) : {};
+        corridorConfig = data.rowCorridors || data.corridors || {};
+        mapLayoutLoaded = true;
+        maybeRender();
+      }, onErr));
+      unsubs.push(onSnapshot(collection(db, COL_POSITIONS), snap=>{ posSnap=snap; maybeRender(); }, onErr));
+      unsubs.push(onSnapshot(collection(db, COL_STOCK), snap=>{ stockSnap=snap; maybeRender(); }, onErr));
+      unsubs.push(onSnapshot(collection(db, COL_PRODUCTS), snap=>{ prodSnap=snap; maybeRender(); }, onErr));
+      state.mapRealtimeUnsubs = unsubs;
+    }
+
+    function buildCfgGrid(allPositions, rowNames){
+      const zones = Array.from(new Set(allPositions.map(p=>zoneFor(p)).filter(Boolean))).sort(naturalCompare);
+      const sorted = [...allPositions].sort((a,b)=>naturalCompare(a.posCode, b.posCode));
+      cfgGrid.innerHTML = sorted.map(p=>`
+        <div class="map-cfg-cell">
+          <div class="pos-label">${esc(p.posCode)}</div>
+          <input type="number" min="0" max="99" data-pos-id="${esc(p.posId)}" data-pos="${esc(p.posCode)}" value="${capFor(p.posCode)}" placeholder="1">
+          <select data-zone-pos-id="${esc(p.posId)}" data-zone-pos="${esc(p.posCode)}">
+            ${zones.concat(["Picking","Reserva","Embalado","Devoluções","Novo","Bloqueado","Expedição","Sem zona"]).filter((v,i,a)=>a.indexOf(v)===i).map(z=>`<option value="${esc(z === "Sem zona" ? "" : z)}" ${zoneFor(p)===z ? "selected" : ""}>${esc(z)}</option>`).join("")}
+          </select>
+        </div>
+      `).join("") || `<div style="color:var(--map-muted);font-size:13px">Sem posições para configurar.</div>`;
+
+      corridorGrid.innerHTML = (rowNames || []).map(row=>`
+        <div class="map-corridor-cell">
+          <label>Fila ${esc(row)}</label>
+          <input type="number" min="0" max="99" data-row="${esc(row)}" value="${corridorEveryFor(row)}" placeholder="8">
+        </div>
+      `).join("") || `<div style="color:var(--map-muted);font-size:13px">Sem filas configuráveis.</div>`;
+
+      $("mapSaveCfg").onclick = async ()=>{
+        try{
+          if(cfgHintEl) cfgHintEl.textContent = "A guardar no Firestore...";
+          const batch = writeBatch(db);
+          const localCopy = {};
+          cfgGrid.querySelectorAll("input[data-pos-id]").forEach(inp=>{
+            const vRaw = parseInt(inp.value,10);
+            const v = Number.isFinite(vRaw) && vRaw >= 0 ? vRaw : 0;
+            const key = cleanMapCode(inp.dataset.pos);
+            capacity[key] = v;
+            localCopy[key] = v;
+            const posId = inp.dataset.posId;
+            if(posId){
+              batch.set(doc(db, COL_POSITIONS, posId), { capacity:v, updatedAt:serverTimestamp() }, { merge:true });
+            }
+          });
+          cfgGrid.querySelectorAll("select[data-zone-pos-id]").forEach(sel=>{
+            const posId = sel.dataset.zonePosId;
+            if(posId) batch.set(doc(db, COL_POSITIONS, posId), { zone:String(sel.value || "").trim(), updatedAt:serverTimestamp() }, { merge:true });
+          });
+          const newCorridors = {};
+          corridorGrid.querySelectorAll("input[data-row]").forEach(inp=>{
+            const vRaw = parseInt(inp.value,10);
+            const v = Number.isFinite(vRaw) && vRaw > 0 ? vRaw : 0;
+            const row = cleanMapCode(inp.dataset.row);
+            if(v > 0) newCorridors[row] = v;
+          });
+          corridorConfig = newCorridors;
+          saveMapCapFallback(localCopy);
+          batch.set(doc(db, COL_CONFIG, MAP_LAYOUT_DOC), { rowCorridors:newCorridors, updatedAt:serverTimestamp() }, { merge:true });
+          await batch.commit();
+          if(cfgHintEl) cfgHintEl.textContent = "✅ Guardado no Firestore.";
+          cfgPanel.style.display = "none";
+        }catch(err){
+          if(cfgHintEl) cfgHintEl.textContent = "❌ Erro ao guardar: " + (err && err.message ? err.message : err);
+        }
+      };
+
+      $("mapSetAll").onclick = ()=>{
+        const v = parseInt($("mapAllVal").value,10) || 1;
+        cfgGrid.querySelectorAll("input[data-pos]").forEach(inp=>{ inp.value = v; });
+      };
+    }
+
+    function updateZoneFilter(allPositions){
+      if(!zoneFilterEl) return;
+      const current = zoneFilterEl.value;
+      const zones = Array.from(new Set(allPositions.map(p=>zoneFor(p)).filter(Boolean))).sort(naturalCompare);
+      zoneFilterEl.innerHTML = `<option value="">Todas as zonas</option>` + zones.map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join("");
+      if(zones.includes(current)) zoneFilterEl.value = current;
+    }
+
+    function renderMapStats(allSlots){
+      let totalSlots=0, emptySlots=0, fullSlots=0, partialSlots=0, overflowSlots=0, pickingSlots=0, noCapSlots=0;
+      (allSlots || []).forEach(slot=>{
+        if(!slot.posCode) return;
+        totalSlots++;
+        const visual = slotVisual(slot, mapCurrentProductMap, true);
+        if(visual.stateClass === "no-cap") noCapSlots++;
+        if(visual.slotType === null) emptySlots++;
+        else if(visual.slotType === "COMPLETA"){
+          if(visual.palletCount === visual.cap && visual.cap > 0) fullSlots++;
+          else if(visual.palletCount > visual.cap && visual.cap > 0) overflowSlots++;
+          else partialSlots++;
+        }else pickingSlots++;
+      });
+
+      $("mapStats").innerHTML = `
+        <div class="map-stat"><div class="n">${totalSlots}</div><div class="l">Total posições</div></div>
+        <div class="map-stat"><div class="n" style="color:var(--map-muted)">${emptySlots}</div><div class="l">Vazias</div></div>
+        <div class="map-stat"><div class="n warn">${partialSlots}</div><div class="l">Parciais</div></div>
+        <div class="map-stat"><div class="n ok">${fullSlots}</div><div class="l">Cheias</div></div>
+        <div class="map-stat"><div class="n danger">${overflowSlots}</div><div class="l">Excesso</div></div>
+        <div class="map-stat"><div class="n pick">${pickingSlots}</div><div class="l">Picking</div></div>
+        <div class="map-stat"><div class="n warn">${noCapSlots}</div><div class="l">Sem cap.</div></div>
+      `;
+    }
+
+    function renderMapData(positions, stockItems, productMap){
+      const stockByPos = {};
+      stockItems.forEach(s=>{
+        const pid = s.positionId;
+        if(!pid) return;
+        if(!stockByPos[pid]) stockByPos[pid] = [];
+        stockByPos[pid].push(s);
+      });
+
+      const allPositions = positions.map(p=>{
+        const posCode = cleanMapCode(p.code, p.id);
+        const parsed = parseMapCode(posCode);
+        return {
+          raw:p,
+          parsed,
+          row: parsed ? parsed.row : null,
+          sortNums: parsed ? parsed.nums : [],
+          posId:p.id,
+          posCode,
+          stocks: stockByPos[p.id] || []
+        };
+      }).sort((a,b)=>naturalCompare(a.posCode, b.posCode));
+
+      mapCurrentProductMap = productMap;
+      mapCurrentAllSlots = allPositions;
+      updateZoneFilter(allPositions);
+      buildCfgGrid(allPositions, Array.from(new Set(allPositions.map(p=>p.row).filter(Boolean))).sort(naturalCompare));
+      mapCurrentProblems = detectProblems(allPositions, stockItems, productMap);
+      renderProblemPanel(mapCurrentProblems);
+
+      const searchText = String(searchEl && searchEl.value || "").trim().toUpperCase();
+      const stateFilter = String(stateFilterEl && stateFilterEl.value || "");
+      const typeFilter = String(typeFilterEl && typeFilterEl.value || "");
+      const zoneFilter = String(zoneFilterEl && zoneFilterEl.value || "");
+
+      const visiblePositions = allPositions.filter(p=>{
+        const visual = slotVisual(p, productMap, true);
+        const stateKey = mapStateKey(visual);
+        const typeKey = visual.slotType || "VAZIO";
+        if(stateFilter && stateKey !== stateFilter) return false;
+        if(typeFilter && typeKey !== typeFilter) return false;
+        if(zoneFilter && zoneFor(p) !== zoneFilter) return false;
+        if(searchText){
+          const stockText = (p.stocks || []).map(s=>`${s.productId || ""} ${s.palletBarcode || ""} ${s.status || ""} ${s.origin || ""} ${s.slotType || ""} ${productSearchText(productMap, s.productId)}`).join(" ");
+          const txt = `${p.posCode} ${zoneFor(p)} ${slotStateLabel(visual)} ${typeKey} ${stockText}`.toUpperCase();
+          if(!txt.includes(searchText)) return false;
+        }
+        return true;
+      });
+      if(filterHintEl){
+        const filterActive = searchText || stateFilter || typeFilter || zoneFilter;
+        filterHintEl.textContent = filterActive ? `${visiblePositions.length}/${allPositions.length} posições` : `Sem filtro • ${allPositions.length} posições`;
+      }
+
+      const grouped = new Map();
+      const extras = [];
+      visiblePositions.forEach(p=>{
+        if(p.parsed){
+          if(!grouped.has(p.row)) grouped.set(p.row, []);
+          grouped.get(p.row).push(p);
+        }else extras.push(p);
+      });
+
+      const rowNames = Array.from(grouped.keys()).sort(naturalCompare);
+      rowNames.forEach(row=>{
+        grouped.get(row).sort((a,b)=>{
+          const len = Math.max(a.sortNums.length, b.sortNums.length);
+          for(let i=0;i<len;i++){
+            const av = Number.isFinite(a.sortNums[i]) ? a.sortNums[i] : -1;
+            const bv = Number.isFinite(b.sortNums[i]) ? b.sortNums[i] : -1;
+            if(av !== bv) return av - bv;
+          }
+          return naturalCompare(a.posCode, b.posCode);
+        });
+      });
+
+      renderMapStats(visiblePositions);
+      mapCurrentSlots = visiblePositions;
+      const exportHint = $("mapExportFilterHint");
+      if(exportHint){
+        const isFiltered = visiblePositions.length < allPositions.length;
+        exportHint.style.display = isFiltered ? "inline" : "none";
+        exportHint.textContent = isFiltered ? `● ${visiblePositions.length}/${allPositions.length} filtradas` : "";
+      }
+      gridEl.innerHTML = "";
+      if(rowNames.length === 0){
+        gridEl.style.display = "block";
+        gridEl.innerHTML = `<div class="map-empty-note">Não há posições com código do tipo fila+número para este filtro. As posições registadas fora do padrão aparecem na coluna lateral.</div>`;
+      }else{
+        gridEl.style.display = "inline-flex";
+        rowNames.forEach(row=>{
+          const rowEl = document.createElement("div");
+          rowEl.className = "wh-row";
+          rowEl.style.marginBottom = "8px";
+          const slots = grouped.get(row) || [];
+          const every = corridorEveryFor(row);
+          let html = `<div class="row-label">${esc(row)}<span class="map-row-code-count">${slots.length}</span></div>`;
+          slots.forEach((slot, si)=>{
+            if(si > 0 && every > 0 && si % every === 0) html += `<div class="corridor-v"><div class="corridor-v-inner">CORREDOR</div></div>`;
+            html += slotVisual(slot, productMap).html;
+          });
+          rowEl.innerHTML = html;
+          gridEl.appendChild(rowEl);
+        });
+      }
+
+      if(extraCountEl) extraCountEl.textContent = `${extras.length}`;
+      if(extraEl){
+        extraEl.innerHTML = extras.length ? extras.map(slot=>slotVisual(slot, productMap).html).join("") : `<div class="map-empty-note">Sem posições fora do padrão fila+número para este filtro.</div>`;
+      }
+      bindMapSlotClicks(visiblePositions, productMap);
+    }
+
+    startRealtimeMap();
+  }
+
+
   function renderPallets(){
     const u = auth.currentUser;
     viewEl.innerHTML = `
@@ -4685,6 +6172,7 @@ async function load(){
         </div>
         <div id="pltReInfo" style="margin-top:10px"></div>
         <div style="margin-top:10px;overflow:auto"><svg id="pltReSvg"></svg></div>
+        <div id="pltHistoryBox" style="margin-top:4px"></div>
       </div>
 
       <div class="card" style="margin-top:12px">
@@ -4787,6 +6275,8 @@ let codes = [];
         reInfo.innerHTML = msgBox("Pica o código de palete.", "warn");
         rePrint.disabled = true;
         reResolved = null;
+        const histBox = $("pltHistoryBox");
+        if(histBox) histBox.innerHTML = "";
         return;
       }
       renderBarcode(reSvg, code);
@@ -4811,6 +6301,65 @@ let codes = [];
         reResolved = null;
         rePrint.disabled = false;
         reInfo.innerHTML = msgBox("Erro a procurar palete (podes imprimir na mesma).", "warn");
+      }
+
+      // Histórico de movimentos desta palete
+      await loadPalletHistory(code);
+    }
+
+    async function loadPalletHistory(palletCode){
+      const histBox = $("pltHistoryBox");
+      if(!histBox) return;
+      histBox.innerHTML = `<div class="hint" style="padding:8px 0">A carregar histórico...</div>`;
+      try{
+        const pbc = normalizeBarcode(palletCode);
+        const qy = query(
+          collection(db, COL_MOVEMENTS),
+          where("palletBarcode", "==", pbc),
+          orderBy("ts", "desc"),
+          limit(50)
+        );
+        const snap = await getDocs(qy);
+        if(snap.empty){
+          histBox.innerHTML = `<div class="hint" style="padding:8px 0">Sem movimentos registados para esta palete.</div>`;
+          return;
+        }
+        const rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+        // resolver posições
+        const posIds = [...new Set(rows.flatMap(r=>[r.positionId,r.fromPositionId,r.toPositionId]).filter(Boolean))];
+        const posSnaps = await Promise.all(posIds.map(id=>getDoc(doc(db,COL_POSITIONS,id))));
+        const posMap = new Map(posIds.map((id,i)=>[id, posSnaps[i].exists() ? (posSnaps[i].data().code||id) : id]));
+        const prodIds = [...new Set(rows.map(r=>r.productId).filter(Boolean))];
+        const prodSnaps = await Promise.all(prodIds.map(id=>getDoc(doc(db,COL_PRODUCTS,id))));
+        const prodMap = new Map(prodIds.map((id,i)=>[id, prodSnaps[i].exists() ? (prodSnaps[i].data().name||id) : id]));
+
+        function posLabel(id){ return id ? (posMap.get(id)||id) : "—"; }
+        function tsLabel(ts){ try{ return ts&&ts.toDate?ts.toDate().toLocaleString("pt-PT"):"—"; }catch(_e){return "—";} }
+
+        histBox.innerHTML = `
+          <div style="overflow:auto;margin-top:8px;border:1px solid var(--stroke);border-radius:12px">
+            <table style="font-size:12px">
+              <thead><tr>
+                <th>Data</th><th>Tipo</th><th>Origem</th><th>Destino</th><th>Produto</th><th>Pal</th><th>UND</th><th>User</th>
+              </tr></thead>
+              <tbody>
+                ${rows.map(r=>`<tr style="${r.cancelled?'opacity:.5':''}">
+                  <td style="white-space:nowrap">${esc(tsLabel(r.ts))}${r.cancelled?'<div style="color:var(--danger);font-size:10px">ANULADO</div>':''}</td>
+                  <td><b>${esc(r.type||"—")}</b></td>
+                  <td class="mono">${esc(posLabel(r.fromPositionId||r.positionId))}</td>
+                  <td class="mono">${esc(posLabel(r.toPositionId)||"—")}</td>
+                  <td>${esc(prodMap.get(r.productId)||r.productId||"—")}</td>
+                  <td class="mono">${Number(r.qtyPallets||0)}</td>
+                  <td class="mono">${Number(r.qtyUnits||0)}</td>
+                  <td style="font-size:11px">${esc((r.userEmail||r.userLabel||"").split("@")[0]||"—")}</td>
+                </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div class="hint" style="margin-top:6px">${rows.length} movimento(s) encontrado(s) para <b>${esc(palletCode)}</b>.</div>
+        `;
+      }catch(err){
+        histBox.innerHTML = `<div class="hint" style="padding:8px 0;color:var(--danger)">Erro ao carregar histórico: ${esc(err&&err.message?err.message:err)}</div>`;
       }
     }
 
@@ -4880,11 +6429,12 @@ let codes = [];
       return;
     }
 
-    // Try to render. Only hide login after render OK.
+    // Try to render. Show the app shell first so the fixed header can be measured correctly.
     try{
       const am=$("authMsg"); if(am) am.innerHTML = msgBox("Opening…", "warn");
-      render();
       setGate("app");
+      render();
+      requestAnimationFrame(()=>syncFixedHeaderOffset());
     }catch(e){
       console.error(e);
       const am=$("authMsg");
