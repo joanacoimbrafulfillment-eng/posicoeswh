@@ -1001,7 +1001,7 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
   }
 
   // ===== Stock ops =====
-  async function addStock(positionId, productId, palletBarcode, slotType, deltaUnits, deltaPallets, origin){
+  async function addStock(positionId, productId, palletBarcode, slotType, deltaUnits, deltaPallets, origin, skipDupCheck){
     const user = auth.currentUser;
     if(!user) throw new Error("Not signed in.");
     if(!canOperate(user)) throw new Error("No permission.");
@@ -1019,14 +1019,21 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     const org = (origin||"").toString().trim().toUpperCase();
 
     // ===== Verificar duplicado de palete =====
-    // Se a palete já existe noutro stockItem (posição ou produto diferente), impedir o registo.
-    if(pbc){
+    // Só verificar em Put Away (inserção nova). No Adjust (skipDupCheck=true) a palete já existe
+    // e o check causava falsos positivos quando o palletBarcode tem caracteres especiais (apóstrofos, etc.)
+    if(pbc && !skipDupCheck){
       const dupQuery = query(
         collection(db, COL_STOCK),
         where("palletBarcode", "==", pbc)
       );
       const dupSnap = await getDocs(dupQuery);
-      const conflicting = dupSnap.docs.filter(d => d.id !== key);
+      // Excluir o próprio documento (key) E documentos com positionId+productId iguais (mesmo slot)
+      const conflicting = dupSnap.docs.filter(d => {
+        if(d.id === key) return false;
+        const dd = d.data();
+        if(dd.positionId === positionId && dd.productId === productId) return false;
+        return true;
+      });
       if(conflicting.length > 0){
         const c = conflicting[0].data();
         const conflictPos = c.positionId || "?";
@@ -2620,163 +2627,163 @@ reset();
   }
 
 
-function setupRemove(){
-    const opBack = document.getElementById("opBackBtn");
-    if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
-    const rPos=$("rPos"), rProd=$("rProd"), rPal=$("rPal"), rQtyU=$("rQtyU"), rQtyP=$("rQtyP");
-    const rDo=$("rDo"), rClear2=$("rClear2");
-    const rMsg=$("rMsg"), rPalInfo=$("rPalInfo");
-    const rModeRemove=$("rModeRemove"), rModeAdd=$("rModeAdd"), rModeHint=$("rModeHint");
-
-    let pos=null, prod=null, pal=null, stock=null;
-    let mode=null; // "add" | "remove"
-
-    function setMode(m){
-      mode = m;
-      if(m==="remove"){
-        rModeRemove.style.outline = "3px solid var(--danger)";
-        rModeAdd.style.outline = "";
-        rModeHint.textContent = "Modo: RETIRAR — vai subtrair do stock.";
-        rModeHint.style.color = "var(--danger)";
-      }else{
-        rModeAdd.style.outline = "3px solid var(--ok)";
-        rModeRemove.style.outline = "";
-        rModeHint.textContent = "Modo: ADICIONAR — vai somar ao stock.";
-        rModeHint.style.color = "var(--ok)";
-      }
-      enable();
-    }
-
-    function reset(){
-      pos=prod=pal=stock=null;
-      mode=null;
-      rPal.value=""; rPos.value=""; rProd.value="";
-      rQtyU.value=""; rQtyP.value="";
-      rQtyU.disabled=true; rQtyP.disabled=true;
-      rDo.disabled=true;
-      if(rPalInfo) rPalInfo.textContent="";
-      if(rModeRemove){ rModeRemove.style.outline=""; rModeRemove.disabled=true; }
-      if(rModeAdd){ rModeAdd.style.outline=""; rModeAdd.disabled=true; }
-      if(rModeHint){ rModeHint.textContent="Seleciona o tipo de ajuste."; rModeHint.style.color=""; }
-      var _rs=$("rStatus"); if(_rs){ _rs.disabled=true; _rs.innerHTML='<option value="" selected>(keep)</option>'; }
-      rMsg.innerHTML = msgBox("Pica a PALETE para carregar origem/produto.", "warn");
-      rPal.focus();
-    }
-    reset();
-    if(rClear2) rClear2.onclick = reset;
-    if(rModeRemove) rModeRemove.onclick = ()=>setMode("remove");
-    if(rModeAdd) rModeAdd.onclick = ()=>setMode("add");
-
-    function enable(){
-      const u=Math.floor(Number(rQtyU.value||0));
-      const p=Math.floor(Number(rQtyP.value||0));
-      rDo.disabled = !(pos && prod && pal && mode && (u>0 || p>0));
-    }
-    rQtyU.addEventListener("input", enable);
-    rQtyP.addEventListener("input", enable);
-
-    function unlockAfterPallet(){
-      rQtyU.disabled=false; rQtyP.disabled=false;
-      if(rModeRemove) rModeRemove.disabled=false;
-      if(rModeAdd) rModeAdd.disabled=false;
-      var _rs=$("rStatus");
-      if(_rs){
-        _rs.disabled=false;
-        ensureStatusesLoaded().then(list=>{
-          const arr = (list && list.length) ? list : DEFAULT_STATUSES;
-          _rs.innerHTML = '<option value="" selected>(keep)</option>' + arr.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
-        }).catch(()=>{});
-      }
-      rQtyU.focus();
-    }
-
-    function pickingWarning(){
-      const slotType = String(stock.slotType||"").toUpperCase();
-      if(slotType === "PICKING"){
-        return `<div class="msg warn" style="margin-top:8px">⚠️ Esta palete é do tipo <b>PICKING</b> — adicionar UND não tem efeito (fica sempre em 1 UND). Só Pallets são somadas/subtraídas normalmente.</div>`;
-      }
-      return "";
-    }
-
-    async function resolvePal(){
-      const code = normalizeBarcode(rPal.value);
-      if(!code){ rMsg.innerHTML = msgBox("Pica a PALETE.", "warn"); return; }
-      const res = await resolvePalletGlobal(code);
-      if(res.ok){
-        pal = res.pbc;
-        pos = res.position;
-        prod = res.product;
-        stock = res.stock || {};
-        rPos.value = pos.code || "";
-        rProd.value = prod.barcode || "";
-        unlockAfterPallet();
-        if(rPalInfo) rPalInfo.innerHTML = `Origin: <b>${esc(pos.code)}</b> • ${esc(prod.name)} • UND ${Number(stock.qtyUnits||0)} • Pal ${Number(stock.qtyPallets||0)} • <b>${esc(stock.slotType||"PICKING")}</b>`;
-        rMsg.innerHTML = msgBox("Palete OK. Escolhe <b>+ Adicionar</b> ou <b>− Retirar</b> e indica a quantidade.", "ok") + pickingWarning();
+  function setupRemove(){
+      const opBack = document.getElementById("opBackBtn");
+      if(opBack){ opBack.onclick = ()=>{ state.op="menu"; renderOperacao(); }; }
+      const rPos=$("rPos"), rProd=$("rProd"), rPal=$("rPal"), rQtyU=$("rQtyU"), rQtyP=$("rQtyP");
+      const rDo=$("rDo"), rClear2=$("rClear2");
+      const rMsg=$("rMsg"), rPalInfo=$("rPalInfo");
+      const rModeRemove=$("rModeRemove"), rModeAdd=$("rModeAdd"), rModeHint=$("rModeHint");
+  
+      let pos=null, prod=null, pal=null, stock=null;
+      let mode=null; // "add" | "remove"
+  
+      function setMode(m){
+        mode = m;
+        if(m==="remove"){
+          rModeRemove.style.outline = "3px solid var(--danger)";
+          rModeAdd.style.outline = "";
+          rModeHint.textContent = "Modo: RETIRAR — vai subtrair do stock.";
+          rModeHint.style.color = "var(--danger)";
+        }else{
+          rModeAdd.style.outline = "3px solid var(--ok)";
+          rModeRemove.style.outline = "";
+          rModeHint.textContent = "Modo: ADICIONAR — vai somar ao stock.";
+          rModeHint.style.color = "var(--ok)";
+        }
         enable();
-        return;
       }
-      if(res.reason==="multiplo"){
-        const rows = res.rows || [];
-        rMsg.innerHTML = `
-          <div class="msg warn">
-            Esta palete aparece em várias linhas. Escolhe:
-            <div style="margin-top:8px;display:grid;gap:8px">
-              ${rows.map((x,i)=>`
-                <button class="btn ghost" data-choice="${i}">
-                  ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
-                </button>
-              `).join("")}
-            </div>
-          </div>`;
-        rMsg.querySelectorAll("[data-choice]").forEach(btn=>{
-          btn.onclick = ()=>{
-            const i = Number(btn.getAttribute("data-choice"));
-            const pick = rows[i];
-            pal = res.pbc;
-            pos = pick.position;
-            prod = pick.product;
-            stock = pick.stock || {};
-            rPos.value = pos.code || "";
-            rProd.value = prod.barcode || "";
-            unlockAfterPallet();
-            if(rPalInfo) rPalInfo.innerHTML = `Origin: <b>${esc(pos.code)}</b> • ${esc(prod.name)} • <b>${esc(stock.slotType||"PICKING")}</b>`;
-            rMsg.innerHTML = msgBox("Palete OK. Escolhe <b>+ Adicionar</b> ou <b>− Retirar</b> e indica a quantidade.", "ok") + pickingWarning();
-            enable();
-          };
-        });
-        return;
+  
+      function reset(){
+        pos=prod=pal=stock=null;
+        mode=null;
+        rPal.value=""; rPos.value=""; rProd.value="";
+        rQtyU.value=""; rQtyP.value="";
+        rQtyU.disabled=true; rQtyP.disabled=true;
+        rDo.disabled=true;
+        if(rPalInfo) rPalInfo.textContent="";
+        if(rModeRemove){ rModeRemove.style.outline=""; rModeRemove.disabled=true; }
+        if(rModeAdd){ rModeAdd.style.outline=""; rModeAdd.disabled=true; }
+        if(rModeHint){ rModeHint.textContent="Seleciona o tipo de ajuste."; rModeHint.style.color=""; }
+        var _rs=$("rStatus"); if(_rs){ _rs.disabled=true; _rs.innerHTML='<option value="" selected>(keep)</option>'; }
+        rMsg.innerHTML = msgBox("Pica a PALETE para carregar origem/produto.", "warn");
+        rPal.focus();
       }
-      rMsg.innerHTML = msgBox("Pallet não encontrada no stock.", "err");
+      reset();
+      if(rClear2) rClear2.onclick = reset;
+      if(rModeRemove) rModeRemove.onclick = ()=>setMode("remove");
+      if(rModeAdd) rModeAdd.onclick = ()=>setMode("add");
+  
+      function enable(){
+        const u=Math.floor(Number(rQtyU.value||0));
+        const p=Math.floor(Number(rQtyP.value||0));
+        rDo.disabled = !(pos && prod && pal && mode && (u>0 || p>0));
+      }
+      rQtyU.addEventListener("input", enable);
+      rQtyP.addEventListener("input", enable);
+  
+      function unlockAfterPallet(){
+        rQtyU.disabled=false; rQtyP.disabled=false;
+        if(rModeRemove) rModeRemove.disabled=false;
+        if(rModeAdd) rModeAdd.disabled=false;
+        var _rs=$("rStatus");
+        if(_rs){
+          _rs.disabled=false;
+          ensureStatusesLoaded().then(list=>{
+            const arr = (list && list.length) ? list : DEFAULT_STATUSES;
+            _rs.innerHTML = '<option value="" selected>(keep)</option>' + arr.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+          }).catch(()=>{});
+        }
+        rQtyU.focus();
+      }
+  
+      function pickingWarning(){
+        const slotType = String(stock.slotType||"").toUpperCase();
+        if(slotType === "PICKING"){
+          return `<div class="msg warn" style="margin-top:8px">⚠️ Esta palete é do tipo <b>PICKING</b> — adicionar UND não tem efeito (fica sempre em 1 UND). Só Pallets são somadas/subtraídas normalmente.</div>`;
+        }
+        return "";
+      }
+  
+      async function resolvePal(){
+        const code = normalizeBarcode(rPal.value);
+        if(!code){ rMsg.innerHTML = msgBox("Pica a PALETE.", "warn"); return; }
+        const res = await resolvePalletGlobal(code);
+        if(res.ok){
+          pal = res.pbc;
+          pos = res.position;
+          prod = res.product;
+          stock = res.stock || {};
+          rPos.value = pos.code || "";
+          rProd.value = prod.barcode || "";
+          unlockAfterPallet();
+          if(rPalInfo) rPalInfo.innerHTML = `Origin: <b>${esc(pos.code)}</b> • ${esc(prod.name)} • UND ${Number(stock.qtyUnits||0)} • Pal ${Number(stock.qtyPallets||0)} • <b>${esc(stock.slotType||"PICKING")}</b>`;
+          rMsg.innerHTML = msgBox("Palete OK. Escolhe <b>+ Adicionar</b> ou <b>− Retirar</b> e indica a quantidade.", "ok") + pickingWarning();
+          enable();
+          return;
+        }
+        if(res.reason==="multiplo"){
+          const rows = res.rows || [];
+          rMsg.innerHTML = `
+            <div class="msg warn">
+              Esta palete aparece em várias linhas. Escolhe:
+              <div style="margin-top:8px;display:grid;gap:8px">
+                ${rows.map((x,i)=>`
+                  <button class="btn ghost" data-choice="${i}">
+                    ${esc(x.position.code)} • ${esc(x.product.name)} • UND ${Number(x.stock.qtyUnits||0)} • Pal ${Number(x.stock.qtyPallets||0)}
+                  </button>
+                `).join("")}
+              </div>
+            </div>`;
+          rMsg.querySelectorAll("[data-choice]").forEach(btn=>{
+            btn.onclick = ()=>{
+              const i = Number(btn.getAttribute("data-choice"));
+              const pick = rows[i];
+              pal = res.pbc;
+              pos = pick.position;
+              prod = pick.product;
+              stock = pick.stock || {};
+              rPos.value = pos.code || "";
+              rProd.value = prod.barcode || "";
+              unlockAfterPallet();
+              if(rPalInfo) rPalInfo.innerHTML = `Origin: <b>${esc(pos.code)}</b> • ${esc(prod.name)} • <b>${esc(stock.slotType||"PICKING")}</b>`;
+              rMsg.innerHTML = msgBox("Palete OK. Escolhe <b>+ Adicionar</b> ou <b>− Retirar</b> e indica a quantidade.", "ok") + pickingWarning();
+              enable();
+            };
+          });
+          return;
+        }
+        rMsg.innerHTML = msgBox("Pallet não encontrada no stock.", "err");
+      }
+  
+      rPal.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
+      rPal.addEventListener("change", ()=>{ if(rPal.value) resolvePal(); });
+      rPal.addEventListener("blur",   ()=>{ if(rPal.value) resolvePal(); });
+      const rPalOk=$("rPalOk"); if(rPalOk) rPalOk.addEventListener("click", ()=>resolvePal());
+  
+      rDo.onclick = async ()=>{
+        try{
+          if(!(pos && prod && pal)) throw new Error("Falta palete.");
+          if(!mode) throw new Error("Escolhe + Adicionar ou − Retirar.");
+          const qtyU=Math.floor(Number(rQtyU.value||0));
+          const qtyP=Math.floor(Number(rQtyP.value||0));
+          if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD.");
+          const sign = mode==="add" ? 1 : -1;
+          rDo.disabled=true; rDo.textContent="A guardar...";
+          window.__lastCapacityWarning = null;
+          const _posCode = pos.code, _prodName = prod.name, _pal = pal;
+          await addStock(pos.id, prod.id, pal, (stock.slotType||"PICKING"), sign*qtyU, sign*qtyP, undefined, true /*skipDupCheck: palete já existe no Adjust*/);
+          const verb = mode==="add" ? "ADICIONADO" : "RETIRADO";
+          const sym = mode==="add" ? "+" : "-";
+          const capWarn = window.__lastCapacityWarning ? `<div class="msg warn" style="margin-top:6px">⚠️ Sobrecarga: ${esc(window.__lastCapacityWarning.replace("⚠️ AVISO: ",""))}</div>` : "";
+          reset();
+          rMsg.innerHTML = msgBox(`✅ ${verb} • ${esc(_posCode)} • ${esc(_prodName)} • ${esc(_pal)} • ${sym}${qtyU} UND • ${sym}${qtyP} Pal`, "ok") + capWarn;
+        }catch(err){
+          rDo.disabled=false; rDo.textContent="Confirmar Ajuste";
+          rMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
+        }
+      };
     }
-
-    rPal.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
-    rPal.addEventListener("change", ()=>{ if(rPal.value) resolvePal(); });
-    rPal.addEventListener("blur",   ()=>{ if(rPal.value) resolvePal(); });
-    const rPalOk=$("rPalOk"); if(rPalOk) rPalOk.addEventListener("click", ()=>resolvePal());
-
-    rDo.onclick = async ()=>{
-      try{
-        if(!(pos && prod && pal)) throw new Error("Falta palete.");
-        if(!mode) throw new Error("Escolhe + Adicionar ou − Retirar.");
-        const qtyU=Math.floor(Number(rQtyU.value||0));
-        const qtyP=Math.floor(Number(rQtyP.value||0));
-        if(!(qtyU>0 || qtyP>0)) throw new Error("Falta QTD.");
-        const sign = mode==="add" ? 1 : -1;
-        rDo.disabled=true; rDo.textContent="A guardar...";
-        window.__lastCapacityWarning = null;
-        const _posCode = pos.code, _prodName = prod.name, _pal = pal;
-        await addStock(pos.id, prod.id, pal, (stock.slotType||"PICKING"), sign*qtyU, sign*qtyP);
-        const verb = mode==="add" ? "ADICIONADO" : "RETIRADO";
-        const sym = mode==="add" ? "+" : "-";
-        const capWarn = window.__lastCapacityWarning ? `<div class="msg warn" style="margin-top:6px">⚠️ Sobrecarga: ${esc(window.__lastCapacityWarning.replace("⚠️ AVISO: ",""))}</div>` : "";
-        reset();
-        rMsg.innerHTML = msgBox(`✅ ${verb} • ${esc(_posCode)} • ${esc(_prodName)} • ${esc(_pal)} • ${sym}${qtyU} UND • ${sym}${qtyP} Pal`, "ok") + capWarn;
-      }catch(err){
-        rDo.disabled=false; rDo.textContent="Confirmar Ajuste";
-        rMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err");
-      }
-    };
-  }
 
   function setupReplenish(){
     const opBack = document.getElementById("opBackBtn");
@@ -3243,6 +3250,8 @@ function setupRemove(){
       pallet = code;
       await refreshInfo();
     });
+    ePal.addEventListener("change", async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); await refreshInfo(); }});
+    ePal.addEventListener("blur",   async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); await refreshInfo(); }});
     const ePalOk=$("ePalOk"); if(ePalOk) ePalOk.addEventListener("click", async ()=>{
       const code = normalizeBarcode(ePal.value);
       if(!code){ eMsg.innerHTML = msgBox("Pica a palete.", "warn"); return; }
@@ -3366,6 +3375,8 @@ function setupRemove(){
     }
 
     mPal.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
+    mPal.addEventListener("change", ()=>{ if(mPal.value) resolvePal(); });
+    mPal.addEventListener("blur",   ()=>{ if(mPal.value) resolvePal(); });
     if(mPalOk) mPalOk.addEventListener("click", ()=>resolvePal());
 
         async function resolveDest(){
@@ -3381,7 +3392,9 @@ if(!(fromPos && prod && pal)){ mMsg.innerHTML = msgBox("Primeiro pica a PALETE."
 
     mTo.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolveDest(); }});
     if(mToOk) mToOk.addEventListener("click", ()=>resolveDest());
-mMove.onclick = async ()=>{
+    mTo.addEventListener("change", ()=>{ if(mTo.value) resolveDest(); });
+    mTo.addEventListener("blur",   ()=>{ if(mTo.value) resolveDest(); });
+m.onclick = async ()=>{
       try{
         if(!(fromPos && toPos && prod && pal)) throw new Error("Falta dados.");
         const u = Number(stock.qtyUnits||0);
