@@ -2772,7 +2772,14 @@ reset();
           rDo.disabled=true; rDo.textContent="A guardar...";
           window.__lastCapacityWarning = null;
           const _posCode = pos.code, _prodName = prod.name, _pal = pal;
-          await addStock(pos.id, prod.id, pal, (stock.slotType||"PICKING"), sign*qtyU, sign*qtyP, undefined, true /*skipDupCheck: palete já existe no Adjust*/);
+          // FIX: usar positionId e productId EXACTOS do stockItem guardado no Firestore.
+          // prod.id pode ser o id canónico que difere do productId legacy no stockItem,
+          // fazendo o stockKey errar e ler curU=0 → "Stock insuficiente".
+          const exactPositionId = (stock && stock.positionId) ? stock.positionId : pos.id;
+          const exactProductId  = (stock && stock.productId)  ? stock.productId  : prod.id;
+          const resolvedSlotType = (stock && stock.slotType)
+            || (String(pos.code||"").toUpperCase().includes("PICK") ? "PICKING" : "COMPLETA");
+          await addStock(exactPositionId, exactProductId, pal, resolvedSlotType, sign*qtyU, sign*qtyP, undefined, true /*skipDupCheck: palete já existe no Adjust*/);
           const verb = mode==="add" ? "ADICIONADO" : "RETIRADO";
           const sym = mode==="add" ? "+" : "-";
           const capWarn = window.__lastCapacityWarning ? `<div class="msg warn" style="margin-top:6px">⚠️ Sobrecarga: ${esc(window.__lastCapacityWarning.replace("⚠️ AVISO: ",""))}</div>` : "";
@@ -2798,6 +2805,7 @@ reset();
     let fromPos=null, toPos=null, prod=null;
     let palFrom=null, palTo=null;
     let fromSlotType="COMPLETA";
+    let fromStock=null; // FIX: guardar stockItem exacto da palete origem
 
     function setMsg(text, kind){ rpMsg.innerHTML = msgBox(text, kind||"ok"); }
 
@@ -2871,6 +2879,7 @@ reset();
         palFrom = res.pbc;
         fromPos = res.position;
         prod = res.product;
+        fromStock = res.stock || null; // FIX
         fromSlotType = (res.stock && res.stock.slotType) ? res.stock.slotType : "COMPLETA";
 
         if(rpFrom) rpFrom.value = fromPos.code || "";
@@ -2907,6 +2916,7 @@ reset();
             palFrom = res.pbc;
             fromPos = pick.position;
             prod = pick.product;
+            fromStock = pick.stock || null; // FIX
             fromSlotType = (pick.stock && pick.stock.slotType) ? pick.stock.slotType : "COMPLETA";
 
             if(rpFrom) rpFrom.value = fromPos.code || "";
@@ -3102,7 +3112,10 @@ reset();
         const dstPallet = palTo ? palTo : (rpToPal.value || "");
 
         rpOk.disabled=true; rpOk.textContent="A processar...";
-        await transferReplenish(fromPos.id, toPos.id, prod.id, srcPallet, dstPallet, qtyU, qtyP);
+        // FIX: usar productId exacto do stockItem da palete origem
+        const rpExactProductId = (fromStock && fromStock.productId) ? fromStock.productId : prod.id;
+        const rpExactFromId    = (fromStock && fromStock.positionId) ? fromStock.positionId : fromPos.id;
+        await transferReplenish(rpExactFromId, toPos.id, rpExactProductId, srcPallet, dstPallet, qtyU, qtyP);
 
         setMsg(`✅ Reabastecido • ${esc(fromPos.code)} → ${esc(toPos.code)} • ${esc(prod.name)} • ${qtyU} UND • ${qtyP} Pal`, "ok");
         rpQtyU.value=""; rpQtyP.value="";
@@ -3406,7 +3419,10 @@ m.onclick = async ()=>{
         mMove.disabled=true; mMove.textContent="A mover...";
         window.__lastCapacityWarning = null;
         const _fromCode = fromPos.code, _toCode = toPos.code, _prodName = prod.name, _pal = pal;
-        await moveStock(fromPos.id, toPos.id, prod.id, pal, u, p, st);
+        // FIX: usar positionId e productId exactos do stockItem
+        const mvExactPositionId = (stock && stock.positionId) ? stock.positionId : fromPos.id;
+        const mvExactProductId  = (stock && stock.productId)  ? stock.productId  : prod.id;
+        await moveStock(mvExactPositionId, toPos.id, mvExactProductId, pal, u, p, st);
         const capWarn = window.__lastCapacityWarning ? `<div class="msg warn" style="margin-top:6px">⚠️ Sobrecarga: ${esc(window.__lastCapacityWarning.replace("⚠️ AVISO: ",""))}</div>` : "";
         reset(); // reset apaga mMsg, por isso escrevemos depois
         mMsg.innerHTML = msgBox(`✅ MOVIDO • ${esc(_fromCode)} → ${esc(_toCode)} • ${esc(_prodName)} • ${esc(_pal)}`, "ok") + capWarn;
