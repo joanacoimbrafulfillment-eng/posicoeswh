@@ -3407,7 +3407,7 @@ if(!(fromPos && prod && pal)){ mMsg.innerHTML = msgBox("Primeiro pica a PALETE."
     if(mToOk) mToOk.addEventListener("click", ()=>resolveDest());
     mTo.addEventListener("change", ()=>{ if(mTo.value) resolveDest(); });
     mTo.addEventListener("blur",   ()=>{ if(mTo.value) resolveDest(); });
-m.onclick = async ()=>{
+mMove.onclick = async ()=>{
       try{
         if(!(fromPos && toPos && prod && pal)) throw new Error("Falta dados.");
         const u = Number(stock.qtyUnits||0);
