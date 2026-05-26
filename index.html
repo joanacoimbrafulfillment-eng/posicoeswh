@@ -567,7 +567,19 @@ const state = { tab: "operacao", op:"menu", user: null, cache: { products: [], p
   }
 function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function msgBox(html, type=""){ return `<div class="msg ${type}">${html}</div>`; }
-  function normalizeBarcode(s){ return (s ?? "").toString().trim(); }
+  function normalizeBarcode(s){
+    // Remove all whitespace, control characters and common scanner terminators (\r \n \t)
+    return (s ?? "").toString().replace(/[\x00-\x1F\x7F\s]+/g, " ").trim().replace(/\s/g, "");
+  }
+
+
+  // Debounce helper for scanner inputs: waits 150ms after last keystroke before firing.
+  // Scanners send all chars at once but some mobile keyboards fire change/blur mid-stream.
+  function makeScannerDebounce(fn, delay){
+    delay = delay || 150;
+    var t = null;
+    return function(){ clearTimeout(t); var self=this, args=arguments; t = setTimeout(function(){ fn.apply(self, args); }, delay); };
+  }
 
   function encodeKey(str){
     const u8 = new TextEncoder().encode(str);
@@ -2757,8 +2769,8 @@ reset();
       }
   
       rPal.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
-      rPal.addEventListener("change", ()=>{ if(rPal.value) resolvePal(); });
-      rPal.addEventListener("blur",   ()=>{ if(rPal.value) resolvePal(); });
+      rPal.addEventListener("change", makeScannerDebounce(()=>{ if(rPal.value) resolvePal(); }));
+      rPal.addEventListener("blur",   makeScannerDebounce(()=>{ if(rPal.value) resolvePal(); }));
       const rPalOk=$("rPalOk"); if(rPalOk) rPalOk.addEventListener("click", ()=>resolvePal());
   
       rDo.onclick = async ()=>{
@@ -3017,8 +3029,8 @@ reset();
       e.preventDefault();
       await resolveOriginPalletIfNeeded();
     });
-    rpPal.addEventListener("change", async ()=>{ if(rpPal.value) await resolveOriginPalletIfNeeded(); });
-    rpPal.addEventListener("blur",   async ()=>{ if(rpPal.value) await resolveOriginPalletIfNeeded(); });
+    rpPal.addEventListener("change", makeScannerDebounce(async ()=>{ if(rpPal.value) await resolveOriginPalletIfNeeded(); }));
+    rpPal.addEventListener("blur",   makeScannerDebounce(async ()=>{ if(rpPal.value) await resolveOriginPalletIfNeeded(); }));
 
     // manual origin
     if(rpFrom){
@@ -3263,8 +3275,8 @@ reset();
       pallet = code;
       await refreshInfo();
     });
-    ePal.addEventListener("change", async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); await refreshInfo(); }});
-    ePal.addEventListener("blur",   async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); await refreshInfo(); }});
+    ePal.addEventListener("change", makeScannerDebounce(async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); await refreshInfo(); }}));
+    ePal.addEventListener("blur",   makeScannerDebounce(async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); await refreshInfo(); }}));
     const ePalOk=$("ePalOk"); if(ePalOk) ePalOk.addEventListener("click", async ()=>{
       const code = normalizeBarcode(ePal.value);
       if(!code){ eMsg.innerHTML = msgBox("Pica a palete.", "warn"); return; }
@@ -3388,7 +3400,7 @@ reset();
     }
 
     mPal.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
-    mPal.addEventListener("change", ()=>{ if(mPal.value) resolvePal(); });
+    mPal.addEventListener("change", makeScannerDebounce(()=>{ if(mPal.value) resolvePal(); }));
     mPal.addEventListener("blur",   ()=>{ if(mPal.value) resolvePal(); });
     if(mPalOk) mPalOk.addEventListener("click", ()=>resolvePal());
 
