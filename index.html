@@ -2596,6 +2596,57 @@ reset();
       const snap = await getDocs(qy);
 
       if(snap.empty){
+        // ── FALLBACK PARA PALETES ANTIGAS ──────────────────────────────────────
+        // Paletes criadas antes desta versão podem ter o campo palletBarcode
+        // vazio ou ausente no documento, mesmo que o ID do documento contenha
+        // o palletId codificado (encodeKey(pbc)). A query acima não as encontra.
+        // Fazemos um scan a todos os stockItems e filtramos pelo sufixo "__<palletId>"
+        // no ID do documento — isto resolve todas as paletes legadas sem alterar
+        // nenhuma outra funcionalidade.
+        const palletIdEncoded = palletIdFromBarcode(pbc); // encodeKey(normalizeBarcode(pbc))
+        const legacySuffix = "__" + palletIdEncoded;
+        try {
+          const allSnap = await getDocs(collection(db, COL_STOCK));
+          const legacyDocs = allSnap.docs.filter(d => d.id.endsWith(legacySuffix));
+          if(legacyDocs.length > 0){
+            // Auto-reparar o campo palletBarcode nos docs antigos (fire-and-forget)
+            // updateDoc já está no scope via named import no topo do ficheiro
+            legacyDocs.forEach(d => {
+              if(!d.data().palletBarcode){
+                try {
+                  updateDoc(d.ref, { palletBarcode: pbc }).catch(() => {});
+                } catch(_e2) {}
+              }
+            });
+            // Montar resultado com o mesmo pipeline do caminho normal
+            const legacyData = legacyDocs.map(d => ({ id: d.id, ...d.data() }));
+            const posIdsL  = [...new Set(legacyData.map(x => x.positionId).filter(Boolean))];
+            const prodIdsL = [...new Set(legacyData.map(x => x.productId).filter(Boolean))];
+            const positionsL   = await Promise.all(posIdsL.map(id => loadPositionById(id)));
+            const posMapL      = new Map(posIdsL.map((id, i) => [id, positionsL[i] || { id, code: id }]));
+            const prodInfoMapL = await resolveCanonicalProductsForIds(prodIdsL);
+            const rowsL = legacyData.map(s => {
+              const pos  = posMapL.get(s.positionId) || { id: s.positionId, code: s.positionId };
+              const info = prodInfoMapL.get(s.productId) || { canonicalId: s.productId, name: s.productId, barcodes: [] };
+              const primaryBarcode = Array.isArray(info.barcodes) && info.barcodes.length ? info.barcodes[0] : "";
+              const prod = {
+                id:      info.canonicalId || s.productId,
+                name:    info.name        || s.productId,
+                barcode: primaryBarcode,
+                barcodes: info.barcodes  || []
+              };
+              return { stock: s, position: pos, product: prod, productCanonicalId: prod.id || s.productId };
+            });
+            const resultL = (rowsL.length > 1)
+              ? { ok: false, reason: "multiplo", pbc, rows: rowsL }
+              : { ok: true,  pbc, productCanonicalId: rowsL[0].productCanonicalId, ...rowsL[0] };
+            __palletResolutionPromiseCache.set(pbc, { ts: Date.now(), value: resultL });
+            return resultL;
+          }
+        } catch(fallbackErr) {
+          console.warn("resolvePalletGlobal: fallback scan for legacy pallets failed:", fallbackErr);
+        }
+        // ── FIM FALLBACK ───────────────────────────────────────────────────────
         const result = { ok:false, reason:"nao_encontrado", pbc };
         __palletResolutionPromiseCache.set(pbc, { ts:Date.now(), value:result });
         return result;
