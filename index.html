@@ -842,6 +842,13 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     return getPositionByInput(code);
   }
 
+  // ===== Location cleanup guard =====
+  // Remove/bloqueia apenas LOCATIONs: código exatamente "CC" ou começado por "SKU".
+  // Não mexe em produtos, SKUs de produto, stock ou movimentos.
+  function isBadLocationCode(code){
+    const c = String(code || "").trim().toUpperCase();
+    return c === "CC" || c.startsWith("SKU");
+  }
 
 
 
@@ -872,8 +879,10 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
   }
   async function upsertPosition({code, barcode}){
     const b = normalizeBarcode(barcode);
-    if(!code || !b) throw new Error("Location e barcode são obrigatórios.");
-    await setDoc(doc(db, COL_POSITIONS, encodeKey(b)), { code: code.trim().toUpperCase(), barcode: b, updatedAt: serverTimestamp() }, { merge:true });
+    const c = String(code || "").trim().toUpperCase();
+    if(!c || !b) throw new Error("Location e barcode são obrigatórios.");
+    if(isBadLocationCode(c)) throw new Error('Location bloqueada: "CC" e locations começadas por "SKU" foram removidas/bloqueadas.');
+    await setDoc(doc(db, COL_POSITIONS, encodeKey(b)), { code: c, barcode: b, updatedAt: serverTimestamp() }, { merge:true });
     invalidateCatalogCaches({ products:false, positions:true });
   }
 
@@ -1555,6 +1564,7 @@ const u = auth.currentUser;
             <div class="right">
               <button class="btn ok" id="sSave">Guardar</button>
               <button class="btn ghost" id="sReload">Refresh</button>
+              <button class="btn danger" id="sCleanBad">Limpar CC/SKU</button>
             </div>
           </div>
           <div id="locMsg"></div>
@@ -1773,16 +1783,19 @@ $("pSearch").oninput = renderProductsTable;
       try{
         const rows = parseCSV(await f.text());
         if(rows.length<=1) throw new Error("CSV sem dados.");
-        const imported = rows.slice(1).filter(r=>r.length>=2)
-          .map(r=>({code:(r[0]||"").trim(), barcode:normalizeBarcode(r[1])}))
+        const parsedLocations = rows.slice(1).filter(r=>r.length>=2)
+          .map(r=>({code:String(r[0]||"").trim().toUpperCase(), barcode:normalizeBarcode(r[1])}))
           .filter(x=>x.code && x.barcode);
+        const skippedBadLocations = parsedLocations.filter(x=>isBadLocationCode(x.code));
+        const imported = parsedLocations.filter(x=>!isBadLocationCode(x.code));
 
         const batch = writeBatch(db);
         imported.forEach(item=>{
           batch.set(doc(db, COL_POSITIONS, encodeKey(item.barcode)), {code:item.code, barcode:item.barcode, updatedAt:serverTimestamp()}, {merge:true});
         });
         await batch.commit();
-        $("locMsg").innerHTML = msgBox(`✅ Importadas/atualizadas <b>${imported.length}</b> posições.`, "ok");
+        const skippedMsg = skippedBadLocations.length ? ` • ignoradas <b>${skippedBadLocations.length}</b> locations CC/SKU` : "";
+        $("locMsg").innerHTML = msgBox(`✅ Importadas/atualizadas <b>${imported.length}</b> posições${skippedMsg}.`, "ok");
         await loadAdminLists(); renderPositionsTable();
       }catch(err){ $("locMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
       finally{ e.target.value=""; }
@@ -1797,6 +1810,29 @@ $("pSearch").oninput = renderProductsTable;
       }catch(err){ $("locMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err"); }
     };
     $("sReload").onclick = async ()=>{ await loadAdminLists(); renderPositionsTable(); };
+    $("sCleanBad").onclick = async ()=>{
+      try{
+        await loadAdminLists();
+        const bad = (state.cache.positions || []).filter(p=>isBadLocationCode(p.code));
+        if(!bad.length){
+          $("locMsg").innerHTML = msgBox('✅ Não encontrei locations "CC" nem começadas por "SKU".', "ok");
+          renderPositionsTable();
+          return;
+        }
+        if(!confirm(`Eliminar ${bad.length} location(s) com código "CC" ou começado por "SKU"?
+
+Isto só apaga documentos da coleção Locations/positions.`)) return;
+        const batch = writeBatch(db);
+        bad.forEach(p=>batch.delete(doc(db, COL_POSITIONS, p.id)));
+        await batch.commit();
+        invalidateCatalogCaches({ products:false, positions:true });
+        await loadAdminLists();
+        renderPositionsTable();
+        $("locMsg").innerHTML = msgBox(`✅ Eliminadas <b>${bad.length}</b> locations: ${esc(bad.map(p=>p.code).join(", "))}`, "ok");
+      }catch(err){
+        $("locMsg").innerHTML = msgBox("Erro: "+esc(err.message), "err");
+      }
+    };
     $("sSearch").oninput = renderPositionsTable;
 
     (async ()=>{ await loadAdminLists(); renderProductsTable(); renderPositionsTable(); })();
