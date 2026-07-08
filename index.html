@@ -571,6 +571,16 @@ function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({'&':'&am
     // Remove all whitespace, control characters and common scanner terminators (\r \n \t)
     return (s ?? "").toString().replace(/[\x00-\x1F\x7F\s]+/g, " ").trim().replace(/\s/g, "");
   }
+  // Gera variantes do código de palete para tentar no lookup
+  // (alguns scanners móveis lêem traços '-' como apóstrofos ''')
+  function palletBarcodeVariants(pbc){
+    const variants = [pbc];
+    const withDashes = pbc.replace(/'/g, "-");
+    const withApos   = pbc.replace(/-/g, "'");
+    if(withDashes !== pbc) variants.push(withDashes);
+    if(withApos   !== pbc) variants.push(withApos);
+    return variants;
+  }
 
 
   // Debounce helper for scanner inputs: waits 150ms after last keystroke before firing.
@@ -2625,11 +2635,15 @@ reset();
     }
 
     const task = (async ()=>{
-      const qy = query(
-        collection(db, COL_STOCK),
-        where("palletBarcode", "==", pbc)
-      );
-      const snap = await getDocs(qy);
+      // Try all barcode variants (e.g. scanner may output apostrophes instead of dashes)
+      let snap = null;
+      let resolvedPbc = pbc;
+      for(const variant of palletBarcodeVariants(pbc)){
+        const qy = query(collection(db, COL_STOCK), where("palletBarcode","==",variant));
+        const s = await getDocs(qy);
+        if(!s.empty){ snap = s; resolvedPbc = variant; break; }
+      }
+      if(!snap){ snap = { empty: true, docs: [] }; }
 
       if(snap.empty){
         // ── FALLBACK PARA PALETES ANTIGAS ──────────────────────────────────────
@@ -3262,11 +3276,16 @@ reset();
   async function listStockByPallet(palletBarcode){
     const pbc = normalizeBarcode(palletBarcode);
     if(!pbc) return [];
-    const qy = query(collection(db, COL_STOCK), where("palletBarcode","==",pbc));
-    const snap = await getDocs(qy);
-    const rows = [];
-    snap.forEach(d=> rows.push({ id:d.id, ...d.data() }));
-    return rows;
+    for(const variant of palletBarcodeVariants(pbc)){
+      const qy = query(collection(db, COL_STOCK), where("palletBarcode","==",variant));
+      const snap = await getDocs(qy);
+      if(!snap.empty){
+        const rows = [];
+        snap.forEach(d=> rows.push({ id:d.id, ...d.data() }));
+        return rows;
+      }
+    }
+    return [];
   }
 
   async function deletePalletEverywhere(palletBarcode){
@@ -3362,8 +3381,8 @@ reset();
       pallet = code;
       await refreshInfo();
     });
-    ePal.addEventListener("change", makeScannerDebounce(async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); await refreshInfo(); }}));
-    ePal.addEventListener("blur",   makeScannerDebounce(async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); await refreshInfo(); }}));
+    ePal.addEventListener("change", makeScannerDebounce(async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); try{ await refreshInfo(); }catch(err){ eMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err"); } }}));
+    ePal.addEventListener("blur",   makeScannerDebounce(async ()=>{ if(ePal.value){ pallet = normalizeBarcode(ePal.value); try{ await refreshInfo(); }catch(err){ eMsg.innerHTML = msgBox("Erro: "+esc(err.message||err), "err"); } }}));
     const ePalOk=$("ePalOk"); if(ePalOk) ePalOk.addEventListener("click", async ()=>{
       const code = normalizeBarcode(ePal.value);
       if(!code){ eMsg.innerHTML = msgBox("Pica a palete.", "warn"); return; }
@@ -4228,6 +4247,8 @@ mMove.onclick = async ()=>{
     }
 
     inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); run(); }});
+    inp.addEventListener("change", makeScannerDebounce(()=>{ if(inp.value) run(); }));
+    inp.addEventListener("blur",   makeScannerDebounce(()=>{ if(inp.value) run(); }));
     go.onclick = run;
     clear.onclick = reset;
     reset();
