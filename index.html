@@ -3507,7 +3507,7 @@ reset();
 
     mPal.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); resolvePal(); }});
     mPal.addEventListener("change", makeScannerDebounce(()=>{ if(mPal.value) resolvePal(); }));
-    mPal.addEventListener("blur",   ()=>{ if(mPal.value) resolvePal(); });
+    mPal.addEventListener("blur",   makeScannerDebounce(()=>{ if(mPal.value) resolvePal(); }));
     if(mPalOk) mPalOk.addEventListener("click", ()=>resolvePal());
 
         async function resolveDest(){
